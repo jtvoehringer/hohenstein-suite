@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Plus, FileText, BookOpen, ListChecks } from 'lucide-react'
+import { Plus, FileText, BookOpen, ListChecks, Inbox } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import { fmtEuroMitZeichen, heuteIso } from '@/lib/format'
@@ -78,6 +78,7 @@ export default async function RechnungenPage({ searchParams }: { searchParams: P
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/rechnungen/offene-posten" className="btn-secondary"><ListChecks size={16} strokeWidth={1.75} /> Offene Posten</Link>
+          <Link href="/rechnungen/verbindlichkeiten" className="btn-secondary"><Inbox size={16} strokeWidth={1.75} /> Verbindlichkeiten</Link>
           <Link href="/rechnungen/leistungen" className="btn-secondary"><BookOpen size={16} strokeWidth={1.75} /> Leistungen</Link>
           {writeOk && (
             <>

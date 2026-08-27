@@ -30,8 +30,23 @@ export type Einstellungen = {
   ea_betriebsbeginn: string
   session_timeout_minuten: number | null
   fristen_vorwarnung_tage: number
+  rechnung_prefix: string
+  rechnung_zaehler: number
+  rechnung_stellen: number
+  angebot_prefix: string
+  angebot_zaehler: number
+  gutschrift_prefix: string
+  gutschrift_zaehler: number
+  rechnung_nummer_mit_jahr: boolean
+  rechnung_zahlungsziel: number
+  rechnung_einleitung_std: string
+  rechnung_schluss_std: string
+  rechnung_fusstext: string
   aktualisiert_am: string | null
 }
+
+const EINLEITUNG_STD = 'Wir erlauben uns, folgende Leistungen in Rechnung zu stellen:'
+const SCHLUSS_STD    = 'Vielen Dank für die gute Zusammenarbeit.'
 
 function Feld({ label, name, defaultValue, type = 'text', placeholder, hint, className = '', ...rest }: {
   label: string; name: string; defaultValue?: string | number | null; type?: string; placeholder?: string; hint?: string; className?: string
@@ -83,6 +98,15 @@ export default function EinstellungenForm({ daten }: { daten: Einstellungen }) {
   }
 
   const beispielKundennummer = `${daten.kunden_prefix || 'K'}-${String(daten.kunden_zaehler).padStart(daten.kunden_stellen, '0')}`
+
+  // Live-Vorschau der Belegnummern (Präfix / Jahr / Stellen / nächste Nummer)
+  const [nk, setNk] = useState({
+    re: daten.rechnung_prefix, an: daten.angebot_prefix, gs: daten.gutschrift_prefix,
+    stellen: daten.rechnung_stellen, jahr: daten.rechnung_nummer_mit_jahr,
+    reZ: daten.rechnung_zaehler, anZ: daten.angebot_zaehler, gsZ: daten.gutschrift_zaehler,
+  })
+  const belegnummer = (prefix: string, zaehler: number) =>
+    `${(prefix || '?').toUpperCase()}-${nk.jahr ? new Date().getFullYear() + '-' : ''}${String(Math.max(1, zaehler || 1)).padStart(Math.min(8, Math.max(1, nk.stellen || 4)), '0')}`
 
   return (
     <div className="space-y-5">
@@ -179,6 +203,54 @@ export default function EinstellungenForm({ daten }: { daten: Einstellungen }) {
               <input type="checkbox" name="ea_kleinunternehmer" defaultChecked={daten.ea_kleinunternehmer} className="accent-hs-teal" />
               Kleinunternehmerregelung (§ 6 Abs. 1 Z 27 UStG) – keine USt ausweisen
             </label>
+          </div>
+        </div>
+
+        {/* ── Fakturierung ─────────────────────────────────────────────────── */}
+        <div className="card">
+          <h2 className="text-base mb-1">Fakturierung</h2>
+          <p className="text-[12.5px] text-hs-text-2 mb-4">Nummernkreise für Rechnungen, Angebote und Gutschriften, Zahlungsziel sowie die Standardtexte neuer Rechnungen. Die Nummer wird erst beim Stellen vergeben.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-[1fr_1fr] gap-3">
+              <Feld label="Rechnung – Präfix" name="rechnung_prefix" defaultValue={daten.rechnung_prefix} maxLength={6} onChange={e => setNk(n => ({ ...n, re: e.target.value }))} />
+              <Feld label="Nächste Nr." name="rechnung_zaehler" type="number" min={1} defaultValue={daten.rechnung_zaehler} onChange={e => setNk(n => ({ ...n, reZ: Number(e.target.value) }))} />
+              <p className="col-span-2 -mt-2 text-[11.5px] text-hs-tertiary">Vorschau: <span className="font-mono text-hs-text">{belegnummer(nk.re, nk.reZ)}</span></p>
+            </div>
+            <div className="grid grid-cols-[1fr_1fr] gap-3">
+              <Feld label="Angebot – Präfix" name="angebot_prefix" defaultValue={daten.angebot_prefix} maxLength={6} onChange={e => setNk(n => ({ ...n, an: e.target.value }))} />
+              <Feld label="Nächste Nr." name="angebot_zaehler" type="number" min={1} defaultValue={daten.angebot_zaehler} onChange={e => setNk(n => ({ ...n, anZ: Number(e.target.value) }))} />
+              <p className="col-span-2 -mt-2 text-[11.5px] text-hs-tertiary">Vorschau: <span className="font-mono text-hs-text">{belegnummer(nk.an, nk.anZ)}</span></p>
+            </div>
+            <div className="grid grid-cols-[1fr_1fr] gap-3">
+              <Feld label="Gutschrift – Präfix" name="gutschrift_prefix" defaultValue={daten.gutschrift_prefix} maxLength={6} onChange={e => setNk(n => ({ ...n, gs: e.target.value }))} />
+              <Feld label="Nächste Nr." name="gutschrift_zaehler" type="number" min={1} defaultValue={daten.gutschrift_zaehler} onChange={e => setNk(n => ({ ...n, gsZ: Number(e.target.value) }))} />
+              <p className="col-span-2 -mt-2 text-[11.5px] text-hs-tertiary">Vorschau: <span className="font-mono text-hs-text">{belegnummer(nk.gs, nk.gsZ)}</span></p>
+            </div>
+            <Feld label="Stellen (Ziffern)" name="rechnung_stellen" type="number" min={1} max={8} defaultValue={daten.rechnung_stellen}
+              hint="Mit führenden Nullen, gilt für alle drei Belegarten" onChange={e => setNk(n => ({ ...n, stellen: Number(e.target.value) }))} />
+            <Feld label="Zahlungsziel (Tage)" name="rechnung_zahlungsziel" type="number" min={0} max={365} defaultValue={daten.rechnung_zahlungsziel}
+              hint="Vorbelegung neuer Rechnungen; je Beleg änderbar" />
+            <label className="flex items-center gap-2 text-sm text-hs-text sm:pt-6 cursor-pointer">
+              <input type="checkbox" name="rechnung_nummer_mit_jahr" defaultChecked={daten.rechnung_nummer_mit_jahr} className="accent-hs-teal"
+                onChange={e => setNk(n => ({ ...n, jahr: e.target.checked }))} />
+              Jahr in der Belegnummer
+            </label>
+            <div className="sm:col-span-3 rounded-lg bg-hs-warn-bg/60 border border-hs-warn/30 px-3 py-2 text-[11.5px] text-hs-warn-fg">
+              Achtung bei „Nächste Nr.": Rechnungsnummern müssen lückenlos und fortlaufend sein (§ 11 UStG). Den Zähler nur zurücksetzen, wenn noch keine Rechnung mit höherer Nummer gestellt wurde – bei Jahreswechsel mit Jahr in der Nummer wieder auf 1 stellen.
+            </div>
+            <div className="sm:col-span-3">
+              <label className="form-label" htmlFor="rechnung_einleitung_std">Einleitung (Standard für neue Rechnungen)</label>
+              <textarea id="rechnung_einleitung_std" name="rechnung_einleitung_std" rows={2} className="input" defaultValue={daten.rechnung_einleitung_std} placeholder={EINLEITUNG_STD} />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="form-label" htmlFor="rechnung_schluss_std">Schlusstext (Standard für neue Rechnungen)</label>
+              <textarea id="rechnung_schluss_std" name="rechnung_schluss_std" rows={2} className="input" defaultValue={daten.rechnung_schluss_std} placeholder={SCHLUSS_STD} />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="form-label" htmlFor="rechnung_fusstext">Fußzeile am PDF (zusätzlich zu Firmendaten/IBAN)</label>
+              <textarea id="rechnung_fusstext" name="rechnung_fusstext" rows={2} className="input" defaultValue={daten.rechnung_fusstext} placeholder="z.B. Firmenbuchnummer, Gerichtsstand, Geschäftsführung" />
+              <p className="text-[11.5px] text-hs-tertiary mt-1">Leere Felder verwenden den eingebauten Standardtext.</p>
+            </div>
           </div>
         </div>
 

@@ -87,6 +87,7 @@ export default function CommandPalette({ groups, darfSchreiben, mandanten, manda
       { id: 'a:beleg',      gruppe: 'Aktionen', label: 'Beleg hochladen',           icon: ScanLine,    href: '/buchhaltung/belege',      keywords: 'scan foto pdf' },
       { id: 'a:rechnung',   gruppe: 'Aktionen', label: 'Neue Rechnung',             icon: FileText,    href: '/rechnungen/neu?art=rechnung', keywords: 'faktura fakturieren beleg' },
       { id: 'a:angebot',    gruppe: 'Aktionen', label: 'Neues Angebot',             icon: FileText,    href: '/rechnungen/neu?art=angebot',  keywords: 'offert' },
+      { id: 'a:eingang',    gruppe: 'Aktionen', label: 'Eingangsrechnung erfassen', icon: FileText,    href: '/rechnungen/verbindlichkeiten?neu=1', keywords: 'lieferant verbindlichkeit zahlbar' },
     ] : []
     aktionen.push({ id: 'a:demo', gruppe: 'Aktionen', label: 'Demo software:112 verwalten', icon: FlaskConical, href: '/demo', keywords: 'demo zugang interessent zurücksetzen musterhof' })
     const andere = mandanten.find(m => m.tenantId !== mandant.tenantId)

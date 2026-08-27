@@ -12,7 +12,9 @@
   (`zwcsgnemijkpyxrqykul`); Zugriff über `src/lib/s112/admin.ts` (Service-Role; nur dieser Mandant darf verändert werden,
   dort liegt auch der produktive „Sandbox"-Mandant!). SQL: `supabase/s112/demo_musterhof.sql`. Demo-Zugänge: Tabelle `demo_zugaenge`.
 - Fakturierung: `belege`/`beleg_positionen`/`beleg_zahlungen`, Nummern über RPC `get_next_belegnummer`;
-  Zahlung bucht automatisch eine E&A-Einnahme (`import_quelle='rechnung'`).
+  Zahlung bucht automatisch eine E&A-Einnahme (`import_quelle='rechnung'`). Nummernkreis/Standardtexte in /einstellungen (Karte „Fakturierung").
+- Verbindlichkeiten: `eingangsrechnungen` (/rechnungen/verbindlichkeiten); Bezahlen bucht E&A-Ausgabe (`import_quelle='eingangsrechnung'`),
+  Zahlung zurücknehmen löscht sie (nur wenn nicht gesperrt). Fällige Eingangs-/überfällige Ausgangsrechnungen erscheinen in der Hinweis-Glocke.
 
 ## Tech-Konventionen
 - Next.js 16 App Router, TypeScript, Tailwind 3 (Farbpräfix `hs-…`, Tokens lt. hohenstein-CD), Supabase SSR.

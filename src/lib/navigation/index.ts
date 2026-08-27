@@ -71,6 +71,7 @@ const NAV: NavGroup[] = [
       { href: '/rechnungen',               label: 'Rechnungen',    keywords: 'faktura fakturieren beleg gutschrift' },
       { href: '/rechnungen/angebote',      label: 'Angebote',      keywords: 'offert anbot' },
       { href: '/rechnungen/offene-posten', label: 'Offene Posten', keywords: 'überfällig mahnung zahlung' },
+      { href: '/rechnungen/verbindlichkeiten', label: 'Verbindlichkeiten', keywords: 'eingangsrechnung lieferantenrechnung zahlbar fällig kreditoren' },
       { href: '/rechnungen/leistungen',    label: 'Leistungen',    child: true, keywords: 'katalog stundensatz tagsatz lizenz preise' },
     ],
   },

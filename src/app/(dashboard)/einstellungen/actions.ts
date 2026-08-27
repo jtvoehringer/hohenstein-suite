@@ -35,6 +35,12 @@ const ganzzahl = (fd: FormData, key: string, min: number, max: number, fallback:
   return Math.min(max, Math.max(min, n))
 }
 
+/** Präfix für Belegnummern: Buchstaben/Ziffern, max. 6 Zeichen, Großschreibung */
+const praefix = (fd: FormData, key: string, fallback: string) => {
+  const v = String(fd.get(key) ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
+  return v || fallback
+}
+
 export async function einstellungenSpeichernAction(formData: FormData): Promise<ActionResult> {
   const ctx = await adminKontext()
   if ('fehler' in ctx) return { fehler: ctx.fehler }
@@ -67,12 +73,26 @@ export async function einstellungenSpeichernAction(formData: FormData): Promise<
     ea_betriebsbeginn:       /^\d{4}-\d{2}-\d{2}$/.test(beginn) ? beginn : null,
     session_timeout_minuten: ganzzahl(formData, 'session_timeout_minuten', 5, 1440, null),
     fristen_vorwarnung_tage: ganzzahl(formData, 'fristen_vorwarnung_tage', 1, 365, 30),
+    // Fakturierung: Nummernkreise, Zahlungsziel, Standardtexte
+    rechnung_prefix:         praefix(formData, 'rechnung_prefix', 'RE'),
+    angebot_prefix:          praefix(formData, 'angebot_prefix', 'AN'),
+    gutschrift_prefix:       praefix(formData, 'gutschrift_prefix', 'GS'),
+    rechnung_stellen:        ganzzahl(formData, 'rechnung_stellen', 1, 8, 4),
+    rechnung_zaehler:        ganzzahl(formData, 'rechnung_zaehler', 1, 999999, 1),
+    angebot_zaehler:         ganzzahl(formData, 'angebot_zaehler', 1, 999999, 1),
+    gutschrift_zaehler:      ganzzahl(formData, 'gutschrift_zaehler', 1, 999999, 1),
+    rechnung_nummer_mit_jahr: formData.get('rechnung_nummer_mit_jahr') === 'on',
+    rechnung_zahlungsziel:   ganzzahl(formData, 'rechnung_zahlungsziel', 0, 365, 14),
+    rechnung_einleitung_std: text(formData, 'rechnung_einleitung_std'),
+    rechnung_schluss_std:    text(formData, 'rechnung_schluss_std'),
+    rechnung_fusstext:       text(formData, 'rechnung_fusstext'),
   }
 
   const supabase = await createSupabaseServerClient()
   const { error } = await (supabase.from('tenant_einstellungen') as any).upsert(werte, { onConflict: 'tenant_id' })
   if (error) return { fehler: error.message }
   revalidate()
+  revalidatePath('/rechnungen')
   return { ok: true }
 }
 
