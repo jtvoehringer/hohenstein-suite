@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Calculator, Lock, Trash2, X, Check } from 'lucide-react'
@@ -26,6 +26,11 @@ export default function UvaClient({ jahr, zeitraeume, vorschlag, uvaListe, fehle
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [zeitraum, setZeitraum] = useState(zeitraeume.includes(vorschlag) ? vorschlag : (zeitraeume[0] ?? ''))
+  // Nach „übermittelt" (router.refresh) fällt die Periode aus der Auswahl – State nachziehen,
+  // sonst zeigt das Select die nächste Periode, gesendet würde aber noch die alte.
+  useEffect(() => {
+    if (!zeitraeume.includes(zeitraum)) setZeitraum(zeitraeume.includes(vorschlag) ? vorschlag : (zeitraeume[0] ?? ''))
+  }, [zeitraeume, vorschlag, zeitraum])
   const [fehler, setFehler] = useState<string | null>(null)
   const [meldung, setMeldung] = useState<string | null>(null)
 
@@ -33,7 +38,7 @@ export default function UvaClient({ jahr, zeitraeume, vorschlag, uvaListe, fehle
 
   function berechnen(e: React.FormEvent) {
     e.preventDefault()
-    if (!zeitraum) return
+    if (!zeitraum || !zeitraeume.includes(zeitraum)) return
     setFehler(null); setMeldung(null)
     startTransition(async () => {
       const res = await berechneUndSpeichereUvaAction(jahr, zeitraum)
