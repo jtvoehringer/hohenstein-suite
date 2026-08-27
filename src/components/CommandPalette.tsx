@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Search, Plus, Calendar, LogOut, Users, Building2, ReceiptText, CheckSquare, FlaskConical, Building, ScanLine, Kanban,
+  Search, Plus, Calendar, LogOut, Users, Building2, ReceiptText, CheckSquare, FlaskConical, Building, ScanLine, Kanban, FileText,
   type LucideIcon,
 } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -85,14 +85,13 @@ export default function CommandPalette({ groups, darfSchreiben, mandanten, manda
       { id: 'a:firma',      gruppe: 'Aktionen', label: 'Neue Firma',                icon: Building2,   href: '/crm/firmen?neu=1',        keywords: 'weingut betrieb anlegen' },
       { id: 'a:buchung',    gruppe: 'Aktionen', label: 'Neue Buchung (E&A)',        icon: Plus,        href: '/buchhaltung/neu',         keywords: 'einnahme ausgabe erfassen' },
       { id: 'a:beleg',      gruppe: 'Aktionen', label: 'Beleg hochladen',           icon: ScanLine,    href: '/buchhaltung/belege',      keywords: 'scan foto pdf' },
+      { id: 'a:rechnung',   gruppe: 'Aktionen', label: 'Neue Rechnung',             icon: FileText,    href: '/rechnungen/neu?art=rechnung', keywords: 'faktura fakturieren beleg' },
+      { id: 'a:angebot',    gruppe: 'Aktionen', label: 'Neues Angebot',             icon: FileText,    href: '/rechnungen/neu?art=angebot',  keywords: 'offert' },
     ] : []
+    aktionen.push({ id: 'a:demo', gruppe: 'Aktionen', label: 'Demo software:112 verwalten', icon: FlaskConical, href: '/demo', keywords: 'demo zugang interessent zurücksetzen musterhof' })
     const andere = mandanten.find(m => m.tenantId !== mandant.tenantId)
     if (andere) {
-      aktionen.push({
-        id: 'a:mandant', gruppe: 'Aktionen', label: andere.istDemo ? 'Demo-Umgebung öffnen' : `Zu ${andere.name} wechseln`,
-        icon: andere.istDemo ? FlaskConical : Building, keywords: 'mandant wechseln demo',
-        href: '/demo',
-      })
+      aktionen.push({ id: 'a:mandant', gruppe: 'Aktionen', label: `Zu ${andere.name} wechseln`, icon: Building, keywords: 'mandant wechseln', href: '/mandant-waehlen' })
     }
     aktionen.push({
       id: 'a:logout', gruppe: 'Aktionen', label: 'Abmelden', icon: LogOut, keywords: 'logout ausloggen',

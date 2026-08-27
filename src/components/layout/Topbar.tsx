@@ -102,7 +102,7 @@ export default function Topbar({ userEmail, userName, roleLabel, mandant, mandan
               }`}
               title="Mandant wechseln">
               {mandant.istDemo ? <FlaskConical size={15} strokeWidth={1.75} /> : <Building2 size={15} strokeWidth={1.75} className="text-white/60" />}
-              <span className="truncate max-w-[180px]">{mandant.anzeigename}</span>
+              <span className="truncate max-w-[260px]">{mandant.anzeigename}</span>
               {mandanten.length > 1 && <ChevronDown size={13} strokeWidth={1.75} className={`opacity-70 transition-transform ${mandantOpen ? 'rotate-180' : ''}`} />}
             </button>
             {mandantOpen && mandanten.length > 1 && (

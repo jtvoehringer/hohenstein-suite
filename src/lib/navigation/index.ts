@@ -4,7 +4,7 @@
 // TabNav und die Befehlspalette (Strg K). Bewusst frei von Server-Imports.
 
 import {
-  LayoutDashboard, Users, ReceiptText, CheckSquare, FlaskConical, Settings, Mail,
+  LayoutDashboard, Users, ReceiptText, FlaskConical, Settings, Mail, FileText,
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/lib/auth/roles'
@@ -66,9 +66,18 @@ const NAV: NavGroup[] = [
     ],
   },
   {
-    key: 'demo', label: 'Demo-Umgebung', icon: FlaskConical,
+    key: 'fakturierung', label: 'Rechnungen', icon: FileText,
     items: [
-      { href: '/demo', label: 'Demo-Umgebung', keywords: 'beispieldaten vorführen zurücksetzen sandbox' },
+      { href: '/rechnungen',               label: 'Rechnungen',    keywords: 'faktura fakturieren beleg gutschrift' },
+      { href: '/rechnungen/angebote',      label: 'Angebote',      keywords: 'offert anbot' },
+      { href: '/rechnungen/offene-posten', label: 'Offene Posten', keywords: 'überfällig mahnung zahlung' },
+      { href: '/rechnungen/leistungen',    label: 'Leistungen',    child: true, keywords: 'katalog stundensatz tagsatz lizenz preise' },
+    ],
+  },
+  {
+    key: 'demo', label: 'Demo software:112', icon: FlaskConical,
+    items: [
+      { href: '/demo', label: 'Demo-Umgebung', keywords: 'software112 musterhof beispieldaten vorführen zurücksetzen zugang interessent' },
     ],
   },
   {
@@ -82,7 +91,7 @@ const NAV: NavGroup[] = [
 ]
 
 /** Pfade, die nur exakt matchen (kein Präfix-Match für Unterrouten) */
-const EXACT_PATHS = new Set(['/dashboard', '/crm', '/buchhaltung', '/nachrichten'])
+const EXACT_PATHS = new Set(['/dashboard', '/crm', '/buchhaltung', '/nachrichten', '/rechnungen'])
 
 export function isActivePath(href: string, pathname: string): boolean {
   return pathname === href || (!EXACT_PATHS.has(href) && pathname.startsWith(href))
@@ -113,5 +122,8 @@ export function activeGroup(groups: NavGroup[], pathname: string): NavGroup | un
       if (isActivePath(it.href, pathname) && (!best || it.href.length > best.len)) best = { g, len: it.href.length }
     }
   }
-  return best?.g ?? groups[0]
+  if (best) return best.g
+  // Unterseiten ohne eigenen Navigationseintrag (z.B. /rechnungen/neu): Bereich über das erste Pfadsegment
+  const segment = '/' + (pathname.split('/')[1] ?? '')
+  return groups.find(g => g.items.some(it => it.href === segment || it.href.startsWith(segment + '/'))) ?? groups[0]
 }

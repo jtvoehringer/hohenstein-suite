@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/ea-dauerauftraege",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/demo-zugaenge",
+      "schedule": "30 5 * * *"
     }
   ]
 }

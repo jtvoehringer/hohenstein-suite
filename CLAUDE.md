@@ -5,10 +5,14 @@
 - Anrede: Du. Sprache in UI und Code-Kommentaren: Deutsch mit echten Umlauten, österreichische Schreibweise (Jänner).
 
 ## Projekt
-- Internes Dashboard: CRM · E-Mail (IMAP) · E&A-Rechnung · Aufgaben · Demo-Umgebung. Referenzsystem: software:112 (Ordner „ERP Software112").
+- Internes Dashboard: CRM · E-Mail (IMAP) · E&A-Rechnung · Fakturierung (Angebote/Rechnungen/Gutschriften, Offene Posten) · Aufgaben · Verwaltung der software:112-Demo. Referenzsystem: software:112 (Ordner „ERP Software112").
 - Supabase-Projekt `hohenstein-suite` (Ref `usvniwfqozqkxdhjjumm`, eu-central-1). Vercel aus GitHub `main`.
-- Mandanten: `11111111-1111-4111-8111-111111111111` Hohenstein Consulting OG (E&A-Betriebsbeginn 01.01.2026),
-  `22222222-2222-4222-8222-222222222222` Demo-Umgebung (`ist_demo`, Reset über RPC `demo_zuruecksetzen()`).
+- Ein Mandant: `11111111-1111-4111-8111-111111111111` Hohenstein Consulting OG (E&A-Betriebsbeginn 01.01.2026).
+- Demo-Umgebung = Mandant „Weingut Musterhof (Demo)" `33333333-3333-4333-8333-333333333333` im software:112-Projekt
+  (`zwcsgnemijkpyxrqykul`); Zugriff über `src/lib/s112/admin.ts` (Service-Role; nur dieser Mandant darf verändert werden,
+  dort liegt auch der produktive „Sandbox"-Mandant!). SQL: `supabase/s112/demo_musterhof.sql`. Demo-Zugänge: Tabelle `demo_zugaenge`.
+- Fakturierung: `belege`/`beleg_positionen`/`beleg_zahlungen`, Nummern über RPC `get_next_belegnummer`;
+  Zahlung bucht automatisch eine E&A-Einnahme (`import_quelle='rechnung'`).
 
 ## Tech-Konventionen
 - Next.js 16 App Router, TypeScript, Tailwind 3 (Farbpräfix `hs-…`, Tokens lt. hohenstein-CD), Supabase SSR.

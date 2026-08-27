@@ -1,14 +1,15 @@
 # Hohenstein Suite
 
 Internes Dashboard der **Hohenstein Consulting OG**: CRM (Kalender, Kontakte, Firmen, Pipeline), E-Mail (IMAP/SMTP),
-E&A-Rechnung (Buchungen, Belege, Kategorien, Daueraufträge, Monatsabschluss, UVA, Konten), Aufgaben und eine
-zurücksetzbare Demo-Umgebung. Fachliche Basis: software:112. Design: hohenstein Corporate Design (Poppins,
+E&A-Rechnung (Buchungen, Belege, Kategorien, Daueraufträge, Monatsabschluss, UVA, Konten), Fakturierung (Angebote,
+Rechnungen, Gutschriften, PDF, E-Mail-Versand, Zahlungen → E&A), Aufgaben und die Verwaltung der software:112-Demo-Umgebung
+(Mandant „Weingut Musterhof (Demo)": Reset der Beispieldaten, zeitlich begrenzte Demo-Zugänge für Interessenten). Fachliche Basis: software:112. Design: hohenstein Corporate Design (Poppins,
 IBM Plex Sans/Mono, Markenblau #77A6E7) – „powered by ICP Solutions".
 
 ## Stack
 - Next.js 16 (App Router, TypeScript, Tailwind 3), Supabase (Postgres + RLS + Auth, Projekt `hohenstein-suite`,
   Ref `usvniwfqozqkxdhjjumm`, eu-central-1), Vercel.
-- Zwei Mandanten: **Hohenstein Consulting OG** (Echtdaten) und **Demo-Umgebung** (Beispieldaten, `ist_demo`).
+- Ein Mandant **Hohenstein Consulting OG**; die Demo-Umgebung lebt im software:112-Projekt (siehe `S112_*`-Variablen, SQL in `supabase/s112/`).
 - Rollen: `admin` · `mitarbeiter` · `leser`. Benutzer mit `@hohenstein-partner.at` / `@icp-consultants.at` werden
   beim ersten Anmelden automatisch als Admin in beiden Mandanten freigeschaltet (Tabelle `zugelassene_domains`).
 
@@ -22,6 +23,10 @@ IBM Plex Sans/Mono, Markenblau #77A6E7) – „powered by ICP Solutions".
 | `EMAIL_CRYPT_SECRET` | langer Zufallsstring (Verschlüsselung der IMAP/SMTP-Passwörter) |
 | `CRON_SECRET` | Zufallsstring – Vercel sendet ihn beim Cron-Aufruf mit |
 | `ANTHROPIC_API_KEY` | optional: Beleg-Erkennung (OCR) |
+| `S112_SUPABASE_URL` | `https://zwcsgnemijkpyxrqykul.supabase.co` – software:112-Projekt (Demo-Umgebung) |
+| `S112_SERVICE_ROLE_KEY` | service_role des software:112-Projekts (Demo-Reset, Demo-Zugänge) |
+| `S112_APP_URL` | `https://software112.icp-consultants.at` (Login-Adresse für Demo-Zugänge) |
+| `S112_DEMO_TENANT_ID` | `33333333-3333-4333-8333-333333333333` (Mandant Weingut Musterhof (Demo)) |
 
 Supabase → Authentication → URL Configuration: **Site URL** = App-URL, **Redirect URLs** = `https://<app>/auth/callback`,
 `https://<app>/auth/invite`, `https://<app>/auth/update-password`.
@@ -35,10 +40,10 @@ npm run type-check
 ```
 
 ## Datenbank
-Migrationen liegen in `supabase/migrations/` (001–006) und sind im Projekt bereits eingespielt. Neue Migrationen:
+Migrationen liegen in `supabase/migrations/` (001–008; 007 Demo-Zugänge, 008 Fakturierung) und sind im Projekt bereits eingespielt. Neue Migrationen:
 Datei anlegen und im Supabase SQL Editor ausführen. Regeln: jede Funktion mit `set search_path = public`,
 `revoke execute … from public, anon`, RPCs mit `p_tenant_id` prüfen `pruefe_tenant_zugriff(...)`.
 
 ## Deployment
-Push auf `main` löst das Vercel-Deployment aus (`push.ps1`). Cron `/api/cron/ea-dauerauftraege` täglich 05:00 UTC
-(siehe `vercel.json`) verbucht fällige Daueraufträge.
+Push auf `main` löst das Vercel-Deployment aus (`push.ps1`). Crons (siehe `vercel.json`): `/api/cron/ea-dauerauftraege`
+täglich 05:00 UTC verbucht fällige Daueraufträge, `/api/cron/demo-zugaenge` 05:30 UTC sperrt abgelaufene Demo-Zugänge.

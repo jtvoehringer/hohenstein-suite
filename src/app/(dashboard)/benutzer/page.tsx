@@ -45,7 +45,7 @@ export default async function BenutzerPage() {
         <h1 className="text-2xl">Benutzer</h1>
         <p className="text-[13.5px] text-hs-text-2 mt-1">
           Mitglieder und Rollen für <span className="font-medium text-hs-text">{t.name ?? 'diesen Mandanten'}</span>{t.ist_demo ? ' (Demo-Umgebung)' : ''}.
-          Neue Benutzer erhalten Zugang zum aktiven Mandanten und zur Demo-Umgebung.
+          Neue Benutzer erhalten Zugang zum aktiven Mandanten.
         </p>
       </div>
       <BenutzerClient mitglieder={mitglieder} domains={((domains ?? []) as R[]).map(d => ({ domain: d.domain, role: d.role }))} />
