@@ -5,7 +5,6 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Mail } from 'lucide-react'
 
 export default function ResetPage() {
-  const supabase = createSupabaseBrowserClient()
   const [email, setEmail]     = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone]       = useState(false)
@@ -14,6 +13,7 @@ export default function ResetPage() {
   async function handleReset(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setError(null)
+    const supabase = createSupabaseBrowserClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password&type=recovery`,
     })

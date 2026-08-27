@@ -6,7 +6,6 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 export default function UpdatePasswordPage() {
   const router = useRouter()
-  const supabase = createSupabaseBrowserClient()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm]   = useState('')
   const [loading, setLoading]   = useState(false)
@@ -17,6 +16,7 @@ export default function UpdatePasswordPage() {
     if (password !== confirm) { setError('Die Passwörter stimmen nicht überein.'); return }
     if (password.length < 8)  { setError('Mindestens 8 Zeichen erforderlich.'); return }
     setLoading(true); setError(null)
+    const supabase = createSupabaseBrowserClient()
     const { error } = await supabase.auth.updateUser({ password })
     if (error) { setError(error.message); setLoading(false) }
     else { router.push('/mandant-waehlen'); router.refresh() }

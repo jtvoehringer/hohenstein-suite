@@ -8,7 +8,6 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
-  const supabase = createSupabaseBrowserClient()
 
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -22,6 +21,7 @@ function LoginForm() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    const supabase = createSupabaseBrowserClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setError(error.message === 'Invalid login credentials' ? 'E-Mail oder Passwort falsch.' : error.message)
