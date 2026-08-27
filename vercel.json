@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/ea-dauerauftraege",
+      "schedule": "0 5 * * *"
+    }
+  ]
+}

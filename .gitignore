@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Environment variables – NIEMALS committen!
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# OS / Editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/settings.json
+
+# Logs
+*.log
+
+# Referenz-/Arbeitsdateien
+_ref/
+_to_delete/
