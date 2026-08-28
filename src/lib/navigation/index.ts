@@ -76,9 +76,9 @@ const NAV: NavGroup[] = [
     ],
   },
   {
-    key: 'demo', label: 'Demo software:112', icon: FlaskConical,
+    key: 'demo', label: 'Demo software:112', icon: FlaskConical, adminOnly: true,
     items: [
-      { href: '/demo', label: 'Demo-Umgebung', keywords: 'software112 musterhof beispieldaten vorführen zurücksetzen zugang interessent' },
+      { href: '/demo', label: 'Demo-Umgebung', keywords: 'software112 musterhof beispieldaten vorführen zurücksetzen zugang team' },
     ],
   },
   {

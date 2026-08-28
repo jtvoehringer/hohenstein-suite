@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { ExternalLink, Grape, Warehouse, Users, ReceiptText, ListChecks, FlaskConical, Wine } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
-import { s112DemoInfo, s112Konfiguriert, s112LetzteAnmeldungen, S112_APP_URL, type DemoInfo } from '@/lib/s112/admin'
+import { getCurrentMembership, canAdmin } from '@/lib/auth/roles'
+import { s112DemoInfo, s112Konfiguriert, s112KeyDiagnose, s112LetzteAnmeldungen, S112_APP_URL, type DemoInfo } from '@/lib/s112/admin'
 import { fmtDatumZeit, fmtZahl } from '@/lib/format'
 import { Card, Hinweis } from '@/components/dashboard/ui'
 import { ResetButton, NeuButton, Liste, type ZugangRow } from './DemoClient'
@@ -25,7 +25,16 @@ const ABLAUF = [
 export default async function DemoPage() {
   const membership = await getCurrentMembership()
   if (!membership) redirect('/mandant-waehlen')
-  const darfSchreiben = canWrite(membership.role)
+  // Nur fürs Management-Team: Der Demo-Bereich vergibt Vollzugriff auf den Musterhof.
+  if (!canAdmin(membership.role)) {
+    return (
+      <div className="max-w-lg">
+        <h1 className="text-2xl mb-4">Demo-Umgebung software:112</h1>
+        <div className="card text-sm text-hs-text-2">Der Demo-Bereich ist dem Management-Team (Admins) vorbehalten.</div>
+      </div>
+    )
+  }
+  const darfSchreiben = true
   const supabase = await createSupabaseServerClient()
 
   const konfiguriert = s112Konfiguriert()
@@ -37,7 +46,7 @@ export default async function DemoPage() {
 
   const [{ data: zugaengeRaw }, { data: letzterReset }] = await Promise.all([
     (supabase.from('demo_zugaenge') as any)
-      .select('id, name, email, s112_user_id, s112_rolle, gueltig_bis, status, notizen, erstellt_am, kontakt_id, firma_id, kontakte(vorname, nachname), firmen(name)')
+      .select('id, name, email, s112_user_id, s112_rolle, gueltig_bis, status, notizen, erstellt_am')
       .eq('tenant_id', membership.tenantId).neq('status', 'geloescht').order('erstellt_am', { ascending: false }),
     (supabase.from('demo_resets') as any).select('erstellt_am, profiles:ausgeloest_von(full_name)').eq('tenant_id', membership.tenantId)
       .order('erstellt_am', { ascending: false }).limit(1).maybeSingle(),
@@ -47,11 +56,8 @@ export default async function DemoPage() {
   const heute = new Date().toISOString().slice(0, 10)
   const zugaenge: ZugangRow[] = rows.map(r => ({
     id: r.id, name: r.name, email: r.email, rolle: r.s112_rolle, gueltig_bis: r.gueltig_bis,
-    status: r.status === 'aktiv' && r.gueltig_bis < heute ? 'abgelaufen' : r.status,
+    status: r.status === 'aktiv' && r.gueltig_bis && r.gueltig_bis < heute ? 'abgelaufen' : r.status,
     notizen: r.notizen ?? null, erstellt_am: r.erstellt_am,
-    kontakt_id: r.kontakt_id ?? null, firma_id: r.firma_id ?? null,
-    kontakt: r.kontakte ? [(r.kontakte as R).vorname, (r.kontakte as R).nachname].filter(Boolean).join(' ') : null,
-    firma: (r.firmen as R | null)?.name ?? null,
     letzte_anmeldung: r.s112_user_id ? (anmeldungen.get(r.s112_user_id) ?? null) : null,
   }))
   const aktiv = zugaenge.filter(z => z.status === 'aktiv').length
@@ -64,8 +70,8 @@ export default async function DemoPage() {
           <h1 className="text-2xl">Demo-Umgebung software:112</h1>
           <p className="text-[13.5px] text-hs-text-2 mt-1 max-w-[72ch]">
             Der Mandant <span className="font-medium text-hs-text">Weingut Musterhof (Demo)</span> in software:112 mit vollständigen
-            Beispieldaten zum Vorführen bei Interessenten. Die Daten lassen sich jederzeit auf den Ausgangszustand zurücksetzen;
-            Interessenten bekommen zeitlich begrenzte Zugänge.
+            Beispieldaten – nur für das Management-Team zum Vorführen bei Kundenterminen. Die Daten lassen sich jederzeit auf den
+            Ausgangszustand zurücksetzen. Externer Zugriff für Interessenten wird hier nicht vergeben.
           </p>
         </div>
         <a href={S112_APP_URL} target="_blank" rel="noreferrer" className="btn-primary">
@@ -76,10 +82,17 @@ export default async function DemoPage() {
       {!konfiguriert && (
         <Hinweis tone="warn">
           Die Anbindung an software:112 ist noch nicht konfiguriert – in Vercel die Variablen <code className="font-mono">S112_SUPABASE_URL</code> und{' '}
-          <code className="font-mono">S112_SERVICE_ROLE_KEY</code> (Supabase-Projekt von software:112) setzen. Bis dahin sind Reset und Demo-Zugänge deaktiviert.
+          <code className="font-mono">S112_SERVICE_ROLE_KEY</code> (Supabase-Projekt von software:112) setzen. Bis dahin sind Reset und Vorführ-Zugänge deaktiviert.
         </Hinweis>
       )}
-      {infoFehler && <Hinweis tone="err">Kennzahlen konnten nicht geladen werden: {infoFehler}</Hinweis>}
+      {infoFehler && (
+        <Hinweis tone="err">
+          Kennzahlen konnten nicht geladen werden: {infoFehler}
+          {/Invalid API key|JWT|apikey/i.test(infoFehler) && s112KeyDiagnose() && (
+            <span className="block mt-1 text-[12.5px]">Diagnose S112_SERVICE_ROLE_KEY: {s112KeyDiagnose()}</span>
+          )}
+        </Hinweis>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-5">
         <Card title="Inhalt der Demo" right={info?.letzter_reset ? <span className="text-[11.5px] text-hs-tertiary">Stand {fmtDatumZeit(info.letzter_reset)}</span> : undefined}>
@@ -116,12 +129,12 @@ export default async function DemoPage() {
             ))}
           </ol>
           <p className="mt-4 text-[12px] text-hs-tertiary">
-            Login für euch: euer eigenes software:112-Konto (Betrieb „Weingut Musterhof (Demo)" wählen). Interessenten nutzen die hier angelegten Demo-Zugänge.
+            Vorgeführt wird mit den unten angelegten Vorführ-Zugängen (oder eurem eigenen software:112-Konto, Betrieb „Weingut Musterhof (Demo)" wählen).
           </p>
         </Card>
       </div>
 
-      <Card title={<>Demo-Zugänge <span className="ml-2 font-mono text-[11.5px] font-normal text-hs-tertiary">{aktiv} aktiv · {zugaenge.length} gesamt</span></>}
+      <Card title={<>Vorführ-Zugänge (Team) <span className="ml-2 font-mono text-[11.5px] font-normal text-hs-tertiary">{aktiv} aktiv · {zugaenge.length} gesamt</span></>}
         right={<NeuButton aktiv={konfiguriert && darfSchreiben} appUrl={S112_APP_URL} />}>
         <Liste zugaenge={zugaenge} darfSchreiben={konfiguriert && darfSchreiben} appUrl={S112_APP_URL} />
       </Card>

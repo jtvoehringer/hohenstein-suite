@@ -89,7 +89,9 @@ export default function CommandPalette({ groups, darfSchreiben, mandanten, manda
       { id: 'a:angebot',    gruppe: 'Aktionen', label: 'Neues Angebot',             icon: FileText,    href: '/rechnungen/neu?art=angebot',  keywords: 'offert' },
       { id: 'a:eingang',    gruppe: 'Aktionen', label: 'Eingangsrechnung erfassen', icon: FileText,    href: '/rechnungen/verbindlichkeiten?neu=1', keywords: 'lieferant verbindlichkeit zahlbar' },
     ] : []
-    aktionen.push({ id: 'a:demo', gruppe: 'Aktionen', label: 'Demo software:112 verwalten', icon: FlaskConical, href: '/demo', keywords: 'demo zugang interessent zurücksetzen musterhof' })
+    if (groups.some(g => g.key === 'demo')) {
+      aktionen.push({ id: 'a:demo', gruppe: 'Aktionen', label: 'Demo software:112 verwalten', icon: FlaskConical, href: '/demo', keywords: 'demo vorführen team zurücksetzen musterhof' })
+    }
     const andere = mandanten.find(m => m.tenantId !== mandant.tenantId)
     if (andere) {
       aktionen.push({ id: 'a:mandant', gruppe: 'Aktionen', label: `Zu ${andere.name} wechseln`, icon: Building, keywords: 'mandant wechseln', href: '/mandant-waehlen' })

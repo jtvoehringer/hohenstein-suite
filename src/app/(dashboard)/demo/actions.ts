@@ -1,12 +1,13 @@
 'use server'
 
-// ── Server Actions: software:112-Demo (Reset + Demo-Zugänge) ──────────────────
-// Alle Aktionen: aktiver Mandant aus getCurrentMembership(), Schreibrecht nötig.
+// ── Server Actions: software:112-Demo (Reset + Vorführ-Zugänge des Teams) ─────
+// Der Demo-Bereich ist nur für das Management-Team (Admins) – externer Zugriff
+// für Interessenten wird hier NICHT vergeben (läuft später über die Homepage).
 // Zugriff auf software:112 ausschließlich über src/lib/s112/admin.ts.
 
 import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
+import { getCurrentMembership, canAdmin } from '@/lib/auth/roles'
 import {
   s112DemoReset, s112DemoUserAnlegen, s112DemoUserAktiv, s112DemoUserRolle,
   s112DemoUserPasswort, s112DemoUserLoeschen, demoPasswort, s112Konfiguriert,
@@ -19,7 +20,7 @@ type Ergebnis<T = undefined> = { ok: true; data?: T } | { ok: false; fehler: str
 async function ctx() {
   const membership = await getCurrentMembership()
   if (!membership) throw new Error('Kein aktiver Mandant')
-  if (!canWrite(membership.role)) throw new Error('Keine Berechtigung')
+  if (!canAdmin(membership.role)) throw new Error('Der Demo-Bereich ist nur für das Management-Team (Admins).')
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   return { supabase, tenantId: membership.tenantId, userId: user?.id ?? null }
@@ -49,20 +50,18 @@ export type NeuerZugang = {
   name: string
   email: string
   rolle: 'winzer' | 'leser'
-  gueltig_bis: string
-  kontakt_id?: string | null
-  firma_id?: string | null
+  /** null = unbefristet (Standard für Team-Zugänge) */
+  gueltig_bis: string | null
   notizen?: string | null
 }
 
-/** Demo-Zugang anlegen: Benutzer in software:112 + Eintrag in demo_zugaenge. Liefert das Startpasswort (wird nur einmal angezeigt). */
+/** Vorführ-Zugang anlegen: Benutzer im software:112-Demo-Mandanten + Eintrag in demo_zugaenge. Liefert das Startpasswort (wird nur einmal angezeigt). */
 export async function zugangAnlegenAction(input: NeuerZugang): Promise<Ergebnis<{ id: string; passwort: string }>> {
   try {
     const { supabase, tenantId, userId } = await ctx()
     const email = input.email.trim().toLowerCase()
     const name = input.name.trim()
     if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, fehler: 'Name und gültige E-Mail-Adresse sind erforderlich.' }
-    if (!input.gueltig_bis) return { ok: false, fehler: 'Bitte ein Ablaufdatum angeben.' }
     if (!s112Konfiguriert()) return { ok: false, fehler: 'software:112-Anbindung nicht konfiguriert.' }
 
     const passwort = demoPasswort()
@@ -73,8 +72,8 @@ export async function zugangAnlegenAction(input: NeuerZugang): Promise<Ergebnis<
       .select('id').eq('tenant_id', tenantId).eq('email', email).limit(1).maybeSingle()
     const werte = {
       tenant_id: tenantId, name, email, s112_user_id: s112UserId, s112_rolle: input.rolle,
-      gueltig_bis: input.gueltig_bis, status: 'aktiv',
-      kontakt_id: input.kontakt_id || null, firma_id: input.firma_id || null, notizen: input.notizen?.trim() || null,
+      gueltig_bis: input.gueltig_bis || null, status: 'aktiv',
+      kontakt_id: null, firma_id: null, notizen: input.notizen?.trim() || null,
       erstellt_von: userId,
     }
     let id: string
@@ -86,16 +85,6 @@ export async function zugangAnlegenAction(input: NeuerZugang): Promise<Ergebnis<
       const { data, error } = await (supabase.from('demo_zugaenge') as any).insert(werte).select('id').single()
       if (error) throw new Error(error.message)
       id = (data as R).id
-    }
-
-    // CRM-Aktivität beim verknüpften Kontakt/Firma
-    if (input.kontakt_id || input.firma_id) {
-      await (supabase.from('aktivitaeten') as any).insert({
-        tenant_id: tenantId, kontakt_id: input.kontakt_id || null, firma_id: input.firma_id || null,
-        art: 'demo', betreff: 'Demo-Zugang software:112 angelegt',
-        beschreibung: `Zugang für ${name} (${email}), gültig bis ${input.gueltig_bis}`,
-        datum: new Date().toISOString().slice(0, 10), erledigt: true, erstellt_von: userId,
-      })
     }
     neuSetzen()
     return { ok: true, data: { id, passwort } }
@@ -110,8 +99,8 @@ async function ladeZugang(supabase: R, tenantId: string, id: string): Promise<R>
   return data as R
 }
 
-/** Gültigkeit verlängern (und ggf. reaktivieren) */
-export async function zugangVerlaengernAction(id: string, gueltigBis: string): Promise<Ergebnis> {
+/** Gültigkeit setzen (Datum oder null = unbefristet) und ggf. reaktivieren */
+export async function zugangVerlaengernAction(id: string, gueltigBis: string | null): Promise<Ergebnis> {
   try {
     const { supabase, tenantId } = await ctx()
     const z = await ladeZugang(supabase, tenantId, id)
@@ -173,23 +162,4 @@ export async function zugangLoeschenAction(id: string): Promise<Ergebnis> {
     neuSetzen()
     return { ok: true }
   } catch (e) { return fehler(e) }
-}
-
-/** Kontakte/Firmen für die Verknüpfung (Suche) */
-export async function sucheCrmAction(q: string): Promise<{ kontakte: { id: string; name: string; email: string | null; firma_id: string | null; firma: string | null }[]; firmen: { id: string; name: string; email: string | null }[] }> {
-  const membership = await getCurrentMembership()
-  if (!membership) return { kontakte: [], firmen: [] }
-  const supabase = await createSupabaseServerClient()
-  const like = `%${q.replace(/[%_]/g, '')}%`
-  const [k, f] = await Promise.all([
-    (supabase.from('kontakte') as any).select('id, vorname, nachname, email, firma_id, firmen(name)')
-      .eq('tenant_id', membership.tenantId).eq('aktiv', true)
-      .or(`nachname.ilike.${like},vorname.ilike.${like},email.ilike.${like}`).order('nachname').limit(8),
-    (supabase.from('firmen') as any).select('id, name, email').eq('tenant_id', membership.tenantId).eq('aktiv', true)
-      .ilike('name', like).order('name').limit(8),
-  ])
-  return {
-    kontakte: ((k.data ?? []) as R[]).map(r => ({ id: r.id, name: [r.vorname, r.nachname].filter(Boolean).join(' '), email: r.email ?? null, firma_id: r.firma_id ?? null, firma: (r.firmen as R | null)?.name ?? null })),
-    firmen: ((f.data ?? []) as R[]).map(r => ({ id: r.id, name: r.name, email: r.email ?? null })),
-  }
 }

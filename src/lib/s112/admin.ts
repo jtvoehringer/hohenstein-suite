@@ -15,6 +15,28 @@ export function s112Konfiguriert(): boolean {
   return !!(process.env.S112_SUPABASE_URL && process.env.S112_SERVICE_ROLE_KEY)
 }
 
+/** Diagnose des hinterlegten Schlüssels (ohne ihn preiszugeben): Projekt-Ref + Rolle aus dem JWT bzw. Key-Format */
+export function s112KeyDiagnose(): string | null {
+  const key = (process.env.S112_SERVICE_ROLE_KEY ?? '').trim()
+  const url = (process.env.S112_SUPABASE_URL ?? '').trim()
+  if (!key) return null
+  const sollRef = url.match(/https?:\/\/([a-z0-9]+)\.supabase\.co/)?.[1] ?? null
+  if (key.startsWith('sb_secret_')) return 'Es ist ein neuer „Secret key" (sb_secret_…) hinterlegt – bitte den Legacy-Key „service_role" (beginnt mit eyJ…) aus Project Settings → API → Legacy API keys verwenden.'
+  if (key.startsWith('sb_publishable_')) return 'Es ist ein „Publishable key" hinterlegt – benötigt wird der Legacy-Key „service_role" (beginnt mit eyJ…).'
+  const teile = key.split('.')
+  if (teile.length !== 3) return `Der Schlüssel hat kein JWT-Format (${key.length} Zeichen, ${teile.length - 1} Punkte) – vermutlich unvollständig kopiert.`
+  try {
+    const payload = JSON.parse(Buffer.from(teile[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')) as { ref?: string; role?: string }
+    const hinweise: string[] = []
+    if (payload.role !== 'service_role') hinweise.push(`Rolle „${payload.role ?? '?'}" statt „service_role" (falscher Key-Typ – der anon-Key reicht nicht)`)
+    if (sollRef && payload.ref !== sollRef) hinweise.push(`Key gehört zum Projekt „${payload.ref ?? '?'}", erwartet wird „${sollRef}" (software112) – Key aus dem falschen Supabase-Projekt kopiert`)
+    if (hinweise.length === 0) return 'Format und Projekt des Schlüssels passen – wurde nach dem Eintragen in Vercel ein Redeploy gemacht? Sonst: Key im Supabase-Dashboard prüfen (evtl. rotiert).'
+    return hinweise.join('; ') + '.'
+  } catch {
+    return 'Der Schlüssel lässt sich nicht als JWT lesen – vermutlich unvollständig oder mit Leerzeichen kopiert.'
+  }
+}
+
 export function s112Admin(): SupabaseClient {
   const url = process.env.S112_SUPABASE_URL
   const key = process.env.S112_SERVICE_ROLE_KEY

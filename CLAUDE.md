@@ -10,7 +10,9 @@
 - Ein Mandant: `11111111-1111-4111-8111-111111111111` Hohenstein Consulting OG (E&A-Betriebsbeginn 01.01.2026).
 - Demo-Umgebung = Mandant „Weingut Musterhof (Demo)" `33333333-3333-4333-8333-333333333333` im software:112-Projekt
   (`zwcsgnemijkpyxrqykul`); Zugriff über `src/lib/s112/admin.ts` (Service-Role; nur dieser Mandant darf verändert werden,
-  dort liegt auch der produktive „Sandbox"-Mandant!). SQL: `supabase/s112/demo_musterhof.sql`. Demo-Zugänge: Tabelle `demo_zugaenge`.
+  dort liegt auch der produktive „Sandbox"-Mandant!). SQL: `supabase/s112/demo_musterhof.sql`. Vorführ-Zugänge (nur Team): Tabelle `demo_zugaenge` (gueltig_bis NULL = unbefristet).
+- Demo-Bereich ist adminOnly (nur Management-Team, zum Vorführen bei Kundenterminen); KEINE Zugänge für Interessenten –
+  das läuft später über die Hohenstein-Homepage. Design: ausschließlich HC CD; ICP-CD nur für den „powered by ICP Solutions"-Hinweis.
 - Fakturierung: `belege`/`beleg_positionen`/`beleg_zahlungen`, Nummern über RPC `get_next_belegnummer`;
   Zahlung bucht automatisch eine E&A-Einnahme (`import_quelle='rechnung'`). Nummernkreis/Standardtexte in /einstellungen (Karte „Fakturierung").
 - Verbindlichkeiten: `eingangsrechnungen` (/rechnungen/verbindlichkeiten); Bezahlen bucht E&A-Ausgabe (`import_quelle='eingangsrechnung'`),

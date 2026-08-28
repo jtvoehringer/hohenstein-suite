@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const admin = createSupabaseAdminClient()
   const heute = new Date().toISOString().slice(0, 10)
   const { data } = await (admin.from('demo_zugaenge') as any)
-    .select('id, s112_user_id').eq('status', 'aktiv').lt('gueltig_bis', heute)
+    .select('id, s112_user_id').eq('status', 'aktiv').not('gueltig_bis', 'is', null).lt('gueltig_bis', heute)
   let gesperrt = 0
   const fehler: string[] = []
   for (const z of (data ?? []) as R[]) {

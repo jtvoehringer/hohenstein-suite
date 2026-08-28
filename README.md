@@ -3,7 +3,7 @@
 Internes Dashboard der **Hohenstein Consulting OG**: CRM (Kalender, Kontakte, Firmen, Pipeline), E-Mail (IMAP/SMTP),
 E&A-Rechnung (Buchungen, Belege, Kategorien, Daueraufträge, Monatsabschluss, UVA, Konten), Fakturierung (Angebote,
 Rechnungen, Gutschriften, PDF, E-Mail-Versand, Zahlungen → E&A, Offene Posten, Verbindlichkeiten/Eingangsrechnungen → E&A-Ausgabe), Aufgaben und die Verwaltung der software:112-Demo-Umgebung
-(Mandant „Weingut Musterhof (Demo)": Reset der Beispieldaten, zeitlich begrenzte Demo-Zugänge für Interessenten). Fachliche Basis: software:112. Design: hohenstein Corporate Design (Poppins,
+(Mandant „Weingut Musterhof (Demo)": Reset der Beispieldaten, interne Vorführ-Zugänge – nur für das Management-Team, kein externer Zugriff). Fachliche Basis: software:112. Design: hohenstein Corporate Design (Poppins,
 IBM Plex Sans/Mono, Markenblau #77A6E7) – „powered by ICP Solutions".
 
 ## Stack
@@ -40,7 +40,7 @@ npm run type-check
 ```
 
 ## Datenbank
-Migrationen liegen in `supabase/migrations/` (001–009; 007 Demo-Zugänge, 008 Fakturierung, 009 Verbindlichkeiten) und sind im Projekt bereits eingespielt. Neue Migrationen:
+Migrationen liegen in `supabase/migrations/` (001–010; 007 Demo-Zugänge, 008 Fakturierung, 009 Verbindlichkeiten, 010 Demo-Team) und sind im Projekt bereits eingespielt. Neue Migrationen:
 Datei anlegen und im Supabase SQL Editor ausführen. Regeln: jede Funktion mit `set search_path = public`,
 `revoke execute … from public, anon`, RPCs mit `p_tenant_id` prüfen `pruefe_tenant_zugriff(...)`.
 
