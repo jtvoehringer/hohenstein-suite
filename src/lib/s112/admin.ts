@@ -96,6 +96,14 @@ export async function s112DemoUserAnlegen(input: { email: string; name: string; 
   const vorhanden = liste?.users.find(u => (u.email ?? '').toLowerCase() === email)
   if (vorhanden) {
     userId = vorhanden.id
+    // Schutz: Passwort nur überschreiben, wenn der Benutzer AUSSCHLIESSLICH im
+    // Demo-Mandanten Mitglied ist – sonst würde ein echtes software:112-Konto
+    // (z.B. Sandbox) sein Passwort verlieren.
+    const { data: mitgliedschaften } = await (admin.from('tenant_memberships') as any)
+      .select('tenant_id').eq('user_id', userId).neq('tenant_id', S112_DEMO_TENANT_ID)
+    if ((mitgliedschaften ?? []).length > 0) {
+      throw new Error(`${email} hat in software:112 bereits Zugriff auf andere Betriebe – dieses Konto kann nicht als Vorführ-Zugang verwendet werden (das Passwort würde überschrieben). Bitte eine eigene Demo-Adresse verwenden, z.B. demo-${email.split('@')[0]}@hohenstein-partner.at.`)
+    }
     const { error } = await admin.auth.admin.updateUserById(userId, { password: input.passwort, user_metadata: { full_name: input.name, display_name: input.name } })
     if (error) throw new Error(error.message)
   } else {
