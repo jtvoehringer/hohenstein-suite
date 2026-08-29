@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Download, Search, Users } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Download, Search, Users, Upload } from 'lucide-react'
 import { SEGMENTE } from '@/lib/crm/types'
 import type { FirmaRow } from '@/lib/crm/types'
 import ClickableTableRow from '@/components/ui/ClickableTableRow'
@@ -74,9 +75,12 @@ export default function FirmenClient({
               <Download size={15} strokeWidth={1.75} /> CSV
             </a>
             {writeOk && (
-              <button onClick={() => setShowNeu(true)} className="btn-primary">
-                <Plus size={15} strokeWidth={2} /> Neue Firma
-              </button>
+              <>
+                <Link href="/crm/import" className="btn-secondary" title="CSV-Import"><Upload size={15} strokeWidth={1.75} /> Import</Link>
+                <button onClick={() => setShowNeu(true)} className="btn-primary">
+                  <Plus size={15} strokeWidth={2} /> Neue Firma
+                </button>
+              </>
             )}
           </div>
         </div>

@@ -72,8 +72,13 @@ export async function s112DemoInfo(): Promise<DemoInfo | null> {
 
 /** Demo-Daten neu erzeugen (RPC demo_musterhof_zuruecksetzen) */
 export async function s112DemoReset(): Promise<void> {
-  const { error } = await (s112Admin().rpc as any)('demo_musterhof_zuruecksetzen')
+  const admin = s112Admin()
+  const { error } = await (admin.rpc as any)('demo_musterhof_zuruecksetzen')
   if (error) throw new Error(error.message)
+  // Rückverfolgungs-Kette der Vorjahres-Füllungen nachziehen (eigene Funktion,
+  // damit die große Reset-Funktion nicht angefasst werden muss)
+  const { error: ketteErr } = await (admin.rpc as any)('demo_musterhof_y2_kette')
+  if (ketteErr) throw new Error('Demo zurückgesetzt, aber y2-Kette fehlgeschlagen: ' + ketteErr.message)
 }
 
 /** Zufälliges, gut lesbares Passwort (ohne verwechselbare Zeichen) */

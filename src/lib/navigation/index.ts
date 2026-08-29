@@ -43,6 +43,7 @@ const NAV: NavGroup[] = [
       { href: '/crm/kontakte', label: 'Kontakte', keywords: 'personen ansprechpartner' },
       { href: '/crm/firmen',   label: 'Firmen',   keywords: 'weingüter betriebe unternehmen kunden' },
       { href: '/crm/pipeline', label: 'Pipeline', keywords: 'leads chancen angebot verkaufschancen' },
+      { href: '/crm/import',   label: 'Datenimport', child: true, keywords: 'csv upload excel importieren kontakte firmen hochladen' },
     ],
   },
   {
