@@ -1,6 +1,6 @@
 # Hohenstein Suite
 
-Internes Dashboard der **Hohenstein Consulting OG**: CRM (Kalender, Kontakte, Firmen, Pipeline, CSV-Import), E-Mail (IMAP/SMTP),
+Internes Dashboard der **Hohenstein Consulting OG**: CRM (Kalender, Kontakte, Firmen, Pipeline, CSV-Import, Visitenkarten-Scan), E-Mail (IMAP/SMTP),
 E&A-Rechnung (Buchungen, Belege, Kategorien, Daueraufträge, Monatsabschluss, UVA, Konten), Fakturierung (Angebote,
 Rechnungen, Gutschriften, PDF, E-Mail-Versand, Zahlungen → E&A, Offene Posten, Verbindlichkeiten/Eingangsrechnungen → E&A-Ausgabe), Aufgaben und die Verwaltung der software:112-Demo-Umgebung
 (Mandant „Weingut Musterhof (Demo)": Reset der Beispieldaten, interne Vorführ-Zugänge – nur für das Management-Team, kein externer Zugriff). Fachliche Basis: software:112. Design: hohenstein Corporate Design (Poppins,

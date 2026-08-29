@@ -49,12 +49,18 @@ export function fmtUhrzeit(t: string | null | undefined): string | null {
 /** Vorwahl + Nummer als Anzeige ("+43 664 1234567") */
 export function fmtTelefon(vorwahl: string | null | undefined, nummer: string | null | undefined): string | null {
   if (!nummer) return null
-  return `${vorwahl ?? '+43'} ${nummer}`.trim()
+  // Nummern mit eigener Landesvorwahl (+43 …, 0043 …) nicht doppelt präfixen
+  const n = nummer.trim()
+  if (n.startsWith('+') || n.startsWith('00')) return n
+  return `${vorwahl ?? '+43'} ${n}`.trim()
 }
 
 /** tel:-Link ohne Leerzeichen */
 export function telHref(vorwahl: string | null | undefined, nummer: string | null | undefined): string {
-  return `tel:${(vorwahl ?? '+43')}${(nummer ?? '').replace(/[^\d]/g, '')}`
+  const n = (nummer ?? '').trim()
+  if (n.startsWith('+')) return `tel:+${n.replace(/[^\d]/g, '')}`
+  if (n.startsWith('00')) return `tel:${n.replace(/[^\d]/g, '')}`
+  return `tel:${(vorwahl ?? '+43')}${n.replace(/[^\d]/g, '')}`
 }
 
 export function fmtBytes(n: number | null | undefined): string {

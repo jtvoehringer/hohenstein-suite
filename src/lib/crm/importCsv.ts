@@ -105,6 +105,18 @@ export function felderFuer(typ: ImportTyp): FeldDef[] {
   return typ === 'firmen' ? FIRMEN_FELDER : KONTAKTE_FELDER
 }
 
+/** Kopfzeile finden: manche Exporte haben Titel-/Beschreibungszeilen vor der
+ *  eigentlichen Tabelle. Gewinner ist die Zeile (unter den ersten 15), deren
+ *  Spalten sich am besten auf bekannte Felder abbilden lassen. */
+export function findeKopfzeile(typ: ImportTyp, rows: string[][]): number {
+  let best = 0, bestTreffer = -1
+  for (let i = 0; i < Math.min(rows.length - 1, 15); i++) {
+    const treffer = autoZuordnung(typ, rows[i]).filter(Boolean).length
+    if (treffer > bestTreffer) { bestTreffer = treffer; best = i }
+  }
+  return bestTreffer >= 2 ? best : 0
+}
+
 /** Spalten automatisch zuordnen: Kopfzeile → Feld-Key (oder '' = ignorieren) */
 export function autoZuordnung(typ: ImportTyp, kopfzeile: string[]): string[] {
   const felder = felderFuer(typ)

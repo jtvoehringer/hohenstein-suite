@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Download, Search, Upload } from 'lucide-react'
+import { Plus, Download, Search, Upload, Camera } from 'lucide-react'
 import { SEGMENTE } from '@/lib/crm/types'
 import type { KontaktRow } from '@/lib/crm/types'
 import ClickableTableRow from '@/components/ui/ClickableTableRow'
@@ -78,6 +78,7 @@ export default function KontakteClient({
             </a>
             {writeOk && (
               <>
+                <Link href="/crm/kontakte/visitenkarte" className="btn-secondary" title="Visitenkarte scannen"><Camera size={15} strokeWidth={1.75} /> Scan</Link>
                 <Link href="/crm/import" className="btn-secondary" title="CSV-Import"><Upload size={15} strokeWidth={1.75} /> Import</Link>
                 <button onClick={() => setShowNeu(true)} className="btn-primary">
                   <Plus size={15} strokeWidth={2} /> Neuer Kontakt

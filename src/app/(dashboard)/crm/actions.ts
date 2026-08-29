@@ -456,3 +456,73 @@ export async function deletePipelineEintrag(id: string): Promise<ActionResult> {
     return {}
   } catch (err) { return fehler(err) }
 }
+
+// ── Visitenkarten-Scan: erkannten Kontakt als Lead anlegen ────────────────────
+// (portiert aus software:112) Firma wird über den Namen wiederverwendet statt
+// doppelt angelegt; Kundennummern kommen aus dem Nummernkreis.
+
+export type VisitenkartenKontakt = {
+  vorname: string | null
+  nachname: string | null
+  firma: string | null
+  position: string | null
+  email: string | null
+  telefon: string | null
+  mobil: string | null
+  strasse: string | null
+  plz: string | null
+  ort: string | null
+  land: string | null
+  website: string | null
+}
+
+export async function createLeadAusVisitenkarte(kontakt: VisitenkartenKontakt): Promise<{ kontaktId?: string; error?: string }> {
+  try {
+    const { tenantId } = await requireWrite()
+    const supabase = await createSupabaseServerClient()
+    const land = /^[A-Za-z]{2}$/.test(kontakt.land ?? '') ? kontakt.land!.toUpperCase() : 'AT'
+
+    // Firma: vorhandene über den Namen wiederverwenden, sonst als Lead anlegen
+    let firmaId: string | null = null
+    const firmaName = (kontakt.firma ?? '').trim()
+    if (firmaName) {
+      const { data: vorhanden } = await (supabase.from('firmen') as any)
+        .select('id').eq('tenant_id', tenantId).ilike('name', firmaName).limit(1).maybeSingle()
+      firmaId = (vorhanden as R | null)?.id ?? null
+      if (!firmaId) {
+        const { data: f, error: firmaError } = await (supabase.from('firmen') as any).insert({
+          tenant_id: tenantId, kundennummer: await naechsteKundennummer(tenantId),
+          name: firmaName, segment: 'weinbau', aktiv: true, is_lead: true, ist_kunde: false,
+          strasse: kontakt.strasse || null, plz: kontakt.plz || null, ort: kontakt.ort || null, land,
+          website: kontakt.website || null,
+          notizen: 'Angelegt über Visitenkarten-Scan',
+        }).select('id').single()
+        if (firmaError) return { error: (firmaError as R).message }
+        firmaId = (f as R | null)?.id ?? null
+      }
+    }
+
+    const { data: k, error: kontaktError } = await (supabase.from('kontakte') as any).insert({
+      tenant_id: tenantId, kundennummer: await naechsteKundennummer(tenantId),
+      vorname: kontakt.vorname || null,
+      nachname: (kontakt.nachname || '').trim() || '(unbekannt)',
+      segment: 'weinbau',
+      position: kontakt.position || null,
+      email: kontakt.email || null,
+      telefon: kontakt.telefon || null,
+      mobil: kontakt.mobil || null,
+      strasse: kontakt.strasse || null,
+      plz: kontakt.plz || null,
+      ort: kontakt.ort || null,
+      land,
+      firma_id: firmaId,
+      is_lead: true, aktiv: true,
+      notizen: 'Angelegt über Visitenkarten-Scan',
+    }).select('id').single()
+    if (kontaktError) return { error: (kontaktError as R).message }
+    revalidateCrm()
+    return { kontaktId: (k as R | null)?.id }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Unbekannter Fehler' }
+  }
+}

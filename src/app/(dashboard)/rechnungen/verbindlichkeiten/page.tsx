@@ -71,7 +71,7 @@ export default async function VerbindlichkeitenPage({ searchParams }: { searchPa
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="card !p-4">
           <p className="overline">Offen gesamt</p>
-          <p className="kpi mt-1">{fmtEuroMitZeichen(gesamt)}</p>
+          <p className={`kpi mt-1 ${gesamt > 0 ? 'text-hs-err-fg' : ''}`}>{fmtEuroMitZeichen(gesamt)}</p>
           <p className="text-xs text-hs-text-2 mt-0.5">{offene.length} Eingangsrechnung{offene.length === 1 ? '' : 'en'}</p>
         </div>
         <div className="card !p-4">

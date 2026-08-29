@@ -8,7 +8,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building2, Check, Download, FileSpreadsheet, RotateCcw, Upload, Users, X } from 'lucide-react'
 import {
-  autoZuordnung, baueZeilen, dekodiere, felderFuer, parseCsv, vorlageCsv,
+  autoZuordnung, baueZeilen, dekodiere, felderFuer, findeKopfzeile, parseCsv, vorlageCsv,
   type ImportTyp, type ImportZeile,
 } from '@/lib/crm/importCsv'
 import { importiereZeilen, type ImportOptionen, type ZeilenErgebnis } from '@/app/(dashboard)/crm/import/actions'
@@ -48,7 +48,10 @@ export default function ImportClient() {
   async function dateiLaden(file: File) {
     setFehler(null)
     const text = dekodiere(await file.arrayBuffer())
-    const geparst = parseCsv(text)
+    let geparst = parseCsv(text)
+    // Vorspann (Titel-/Beschreibungszeilen vor der Tabelle) automatisch überspringen
+    const kopfIdx = findeKopfzeile(typ, geparst)
+    if (kopfIdx > 0) geparst = geparst.slice(kopfIdx)
     if (geparst.length < 2) { setFehler('Die Datei enthält keine Datenzeilen (nur Kopfzeile oder leer).'); return }
     if (geparst.length > 5001) { setFehler('Maximal 5.000 Datenzeilen pro Datei – bitte aufteilen.'); return }
     setDateiname(file.name)

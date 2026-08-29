@@ -163,7 +163,7 @@ export default function VerbindlichkeitenClient({ rows, filter, kategorien, kont
                       </td>
                       <td className="px-4 py-2.5"><span className={erStatusKlasse(r.status, ueber)}>{ueber ? 'Überfällig' : ER_STATUS_LABEL[r.status]}</span></td>
                       <td className="px-4 py-2.5 betrag text-hs-text-2 hidden lg:table-cell">{fmtEuroMitZeichen(r.betrag_netto)}</td>
-                      <td className="px-4 py-2.5 betrag font-semibold">{fmtEuroMitZeichen(r.betrag_brutto)}</td>
+                      <td className={`px-4 py-2.5 betrag font-semibold ${r.status === 'offen' ? 'text-hs-err-fg' : ''}`}>{fmtEuroMitZeichen(r.betrag_brutto)}</td>
                       <td className="px-2 py-2.5">
                         {writeOk && (
                           <div className="flex items-center justify-end gap-0.5">
@@ -213,7 +213,7 @@ export default function VerbindlichkeitenClient({ rows, filter, kategorien, kont
                   <tr className="bg-hs-bg/60 font-semibold">
                     <td className="px-4 py-2.5" colSpan={6}>Summe offen</td>
                     <td className="px-4 py-2.5 betrag hidden lg:table-cell">{fmtEuroMitZeichen(rows.reduce((s, r) => s + r.betrag_netto, 0))}</td>
-                    <td className="px-4 py-2.5 betrag">{fmtEuroMitZeichen(rows.reduce((s, r) => s + r.betrag_brutto, 0))}</td>
+                    <td className="px-4 py-2.5 betrag text-hs-err-fg">{fmtEuroMitZeichen(rows.reduce((s, r) => s + r.betrag_brutto, 0))}</td>
                     <td></td>
                   </tr>
                 </tfoot>

@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  Camera,
   Search, Plus, Calendar, LogOut, Users, Building2, ReceiptText, CheckSquare, FlaskConical, Building, ScanLine, Kanban, FileText,
   type LucideIcon,
 } from 'lucide-react'
@@ -88,6 +89,7 @@ export default function CommandPalette({ groups, darfSchreiben, mandanten, manda
       { id: 'a:rechnung',   gruppe: 'Aktionen', label: 'Neue Rechnung',             icon: FileText,    href: '/rechnungen/neu?art=rechnung', keywords: 'faktura fakturieren beleg' },
       { id: 'a:angebot',    gruppe: 'Aktionen', label: 'Neues Angebot',             icon: FileText,    href: '/rechnungen/neu?art=angebot',  keywords: 'offert' },
       { id: 'a:eingang',    gruppe: 'Aktionen', label: 'Eingangsrechnung erfassen', icon: FileText,    href: '/rechnungen/verbindlichkeiten?neu=1', keywords: 'lieferant verbindlichkeit zahlbar' },
+      { id: 'a:visit',      gruppe: 'Aktionen', label: 'Visitenkarte scannen',      icon: Camera,      href: '/crm/kontakte/visitenkarte', keywords: 'scan foto lead kontakt' },
     ] : []
     if (groups.some(g => g.key === 'demo')) {
       aktionen.push({ id: 'a:demo', gruppe: 'Aktionen', label: 'Demo software:112 verwalten', icon: FlaskConical, href: '/demo', keywords: 'demo vorführen team zurücksetzen musterhof' })

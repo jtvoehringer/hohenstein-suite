@@ -55,7 +55,7 @@ export default async function OffenePostenPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="card !p-4">
           <p className="overline">Offen gesamt</p>
-          <p className="kpi mt-1">{fmtEuroMitZeichen(gesamt)}</p>
+          <p className={`kpi mt-1 ${gesamt > 0 ? 'text-hs-err-fg' : ''}`}>{fmtEuroMitZeichen(gesamt)}</p>
           <p className="text-xs text-hs-text-2 mt-0.5">{posten.length} Rechnung{posten.length === 1 ? '' : 'en'}</p>
         </div>
         <div className="card !p-4">
@@ -100,14 +100,14 @@ export default async function OffenePostenPage() {
                     <td className="px-4 py-2.5"><StatusPill status={p.status} ueberfaellig={p.tage > 0} /></td>
                     <td className="px-4 py-2.5 hidden lg:table-cell"><span className={stufeKlasse(p.stufe.stufe)}>{p.stufe.label}</span></td>
                     <td className="px-4 py-2.5 betrag text-hs-text-2 hidden md:table-cell">{fmtEuroMitZeichen(p.summe_brutto)}</td>
-                    <td className="px-4 py-2.5 betrag font-semibold">{fmtEuroMitZeichen(p.offen)}</td>
+                    <td className="px-4 py-2.5 betrag font-semibold text-hs-err-fg">{fmtEuroMitZeichen(p.offen)}</td>
                   </ClickableTableRow>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="bg-hs-bg/60 font-semibold">
                   <td className="px-4 py-2.5" colSpan={8}>Summe offen</td>
-                  <td className="px-4 py-2.5 betrag">{fmtEuroMitZeichen(gesamt)}</td>
+                  <td className="px-4 py-2.5 betrag text-hs-err-fg">{fmtEuroMitZeichen(gesamt)}</td>
                 </tr>
               </tfoot>
             </table>
