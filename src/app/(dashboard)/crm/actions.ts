@@ -157,6 +157,7 @@ function firmaPayload(fd: FormData): R {
     is_lead:           bool(fd, 'is_lead'),
     ist_kunde:         fd.has('ist_kunde') ? bool(fd, 'ist_kunde') : true,
     ist_lieferant:     bool(fd, 'ist_lieferant'),
+    quelle:            str(fd, 'quelle'),
     notizen:           str(fd, 'notizen'),
   }
 }
@@ -169,6 +170,7 @@ export async function createFirma(fd: FormData): Promise<ActionResult> {
     if (!payload.name) return { error: 'Firmenname ist ein Pflichtfeld.' }
     payload.tenant_id = tenantId
     payload.kundennummer = await naechsteKundennummer(tenantId)
+    payload.quelle = payload.quelle || 'Manuell'
     const { data, error } = await (supabase.from('firmen') as any)
       .insert(payload).select('id').single()
     if (error) return { error: (error as R).message }
@@ -497,6 +499,7 @@ export async function createLeadAusVisitenkarte(kontakt: VisitenkartenKontakt): 
           name: firmaName, segment: 'weinbau', aktiv: true, is_lead: true, ist_kunde: false,
           strasse: kontakt.strasse || null, plz: kontakt.plz || null, ort: kontakt.ort || null, land,
           website: kontakt.website || null,
+          quelle: 'Visitenkarten-Scan',
           notizen: 'Angelegt über Visitenkarten-Scan',
         }).select('id').single()
         if (firmaError) return { error: (firmaError as R).message }

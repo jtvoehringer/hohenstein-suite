@@ -133,6 +133,7 @@ export type FirmaRow = {
   is_lead: boolean
   ist_kunde: boolean
   ist_lieferant: boolean
+  quelle: string | null
   notizen: string | null
   aktiv: boolean
   erstellt_am: string

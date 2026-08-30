@@ -33,7 +33,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
 
   const [{ data: fRaw }, { data: kRaw }, { data: kfRaw }, { data: pRaw }, { data: alleKRaw }] = await Promise.all([
     (supabase.from('firmen') as any)
-      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, notizen, aktiv, erstellt_am')
+      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, notizen, aktiv, erstellt_am')
       .eq('id', id).eq('tenant_id', tenantId).maybeSingle(),
     // Ansprechpartner 1: Kontakte mit firma_id = diese Firma
     (supabase.from('kontakte') as any)
@@ -62,7 +62,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
     email: f.email ?? null, website: f.website ?? null, uid_nummer: f.uid_nummer ?? null,
     zahlungsziel_tage: f.zahlungsziel_tage ?? 14,
     is_lead: !!f.is_lead, ist_kunde: !!f.ist_kunde, ist_lieferant: !!f.ist_lieferant,
-    notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
+    quelle: f.quelle ?? null, notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
   }
 
   // Ansprechpartner zusammenführen (Primärzuordnung + kontakt_firmen), Duplikate vermeiden

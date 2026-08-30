@@ -18,7 +18,7 @@ export async function GET() {
 
   const supabase = await createSupabaseServerClient()
   const data = await alleZeilen(() => (supabase.from('firmen') as any)
-    .select('kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, notizen, erstellt_am')
+    .select('kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, notizen, erstellt_am')
     .eq('tenant_id', membership.tenantId).eq('aktiv', true)
     .order('name').order('kundennummer'))
 
@@ -41,6 +41,7 @@ export async function GET() {
     lead:              ja(r.is_lead),
     kunde:             ja(r.ist_kunde),
     lieferant:         ja(r.ist_lieferant),
+    quelle:            r.quelle,
     notizen:           r.notizen,
     erstellt_am:       fmtDatum(r.erstellt_am),
   }))
@@ -63,6 +64,7 @@ export async function GET() {
     { key: 'lead',              header: 'Lead' },
     { key: 'kunde',             header: 'Kunde' },
     { key: 'lieferant',         header: 'Lieferant' },
+    { key: 'quelle',            header: 'Quelle' },
     { key: 'notizen',           header: 'Notizen' },
     { key: 'erstellt_am',       header: 'Angelegt am' },
   ])

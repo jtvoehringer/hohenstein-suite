@@ -21,7 +21,7 @@ export default async function FirmenPage({ searchParams }: { searchParams: Promi
 
   const [fRaw, kRaw] = await Promise.all([
     alleZeilen(() => (supabase.from('firmen') as any)
-      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, notizen, aktiv, erstellt_am')
+      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, notizen, aktiv, erstellt_am')
       .eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
     alleZeilen(() => (supabase.from('kontakte') as any)
       .select('id, firma_id').eq('tenant_id', tenantId).eq('aktiv', true).not('firma_id', 'is', null).order('id')),
@@ -38,7 +38,7 @@ export default async function FirmenPage({ searchParams }: { searchParams: Promi
     email: f.email ?? null, website: f.website ?? null, uid_nummer: f.uid_nummer ?? null,
     zahlungsziel_tage: f.zahlungsziel_tage ?? 14,
     is_lead: !!f.is_lead, ist_kunde: !!f.ist_kunde, ist_lieferant: !!f.ist_lieferant,
-    notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
+    quelle: f.quelle ?? null, notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
   }))
 
   const filterParam = typeof sp.filter === 'string' ? sp.filter : undefined

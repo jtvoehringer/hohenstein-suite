@@ -82,6 +82,7 @@ export const FIRMEN_FELDER: FeldDef[] = [
   { key: 'ist_lieferant',     label: 'Ist Lieferant',     synonyme: ['ist_lieferant', 'lieferant'], hinweis: 'ja/nein – leer = nein', beispiel: 'nein' },
   { key: 'is_lead',           label: 'Lead',              synonyme: ['is_lead', 'lead', 'interessent'], hinweis: 'ja/nein – leer = nein', beispiel: 'nein' },
   { key: 'kundennummer',      label: 'Kundennummer',      synonyme: ['kundennummer', 'kunden-nr', 'kundennr', 'kdnr'], hinweis: 'leer = automatisch vergeben', beispiel: '' },
+  { key: 'quelle',            label: 'Quelle',            synonyme: ['quelle', 'herkunft', 'source', 'lead-quelle', 'leadquelle'], hinweis: 'leer = „CSV-Import"', beispiel: 'Messe Krems' },
   { key: 'notizen',           label: 'Notizen',           synonyme: ['notizen', 'notiz', 'bemerkung', 'bemerkungen', 'kommentar', 'anmerkung'], beispiel: 'Kontakt über Messe Krems' },
 ]
 

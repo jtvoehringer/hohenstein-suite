@@ -92,6 +92,7 @@ function firmaWerte(w: Record<string, string>): R {
     ist_kunde:         normBool(w.ist_kunde ?? '', true),
     ist_lieferant:     normBool(w.ist_lieferant ?? '', false),
     is_lead:           normBool(w.is_lead ?? '', false),
+    quelle:            norm(w.quelle) || 'CSV-Import',
     notizen:           norm(w.notizen) || null,
   }
 }

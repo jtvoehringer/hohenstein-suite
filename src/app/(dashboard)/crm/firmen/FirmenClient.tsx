@@ -32,6 +32,11 @@ export default function FirmenClient({
   const [filter, setFilter]   = useState<Filter>(initialFilter)
   const [standort, setStandort] = useState('alle')
   const [region, setRegion]     = useState('alle')
+  const [quelle, setQuelle]     = useState('alle')
+
+  const quellen = useMemo(() =>
+    [...new Set(firmen.map(f => f.quelle).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'de')),
+  [firmen])
 
   // Auswahllisten aus den tatsächlich vorhandenen Werten (Region abhängig vom Betriebsstandort)
   const standorte = useMemo(() => {
@@ -54,11 +59,12 @@ export default function FirmenClient({
       if (filter === 'lieferant' && !f.ist_lieferant) return false
       if (standort !== 'alle' && f.betriebsstandort !== standort) return false
       if (region !== 'alle' && f.region !== region) return false
+      if (quelle !== 'alle' && f.quelle !== quelle) return false
       if (!q) return true
-      const text = [f.kundennummer, f.name, f.email, f.telefon, f.ort, f.plz, f.uid_nummer, f.website, f.betriebsstandort, f.region].filter(Boolean).join(' ').toLowerCase()
+      const text = [f.kundennummer, f.name, f.email, f.telefon, f.ort, f.plz, f.uid_nummer, f.website, f.betriebsstandort, f.region, f.quelle].filter(Boolean).join(' ').toLowerCase()
       return text.includes(q)
     })
-  }, [firmen, suche, segment, filter, standort, region])
+  }, [firmen, suche, segment, filter, standort, region, quelle])
 
   const nLead = firmen.filter(f => f.is_lead).length
   const nKunde = firmen.filter(f => f.ist_kunde && !f.is_lead).length
@@ -123,6 +129,13 @@ export default function FirmenClient({
                 <option value="alle">Alle Regionen</option>
                 {regionen.map(r => <option key={r} value={r}>{r} ({firmen.filter(f => f.region === r && (standort === 'alle' || f.betriebsstandort === standort)).length})</option>)}
               </select>
+              {quellen.length > 0 && (
+                <select value={quelle} onChange={e => setQuelle(e.target.value)}
+                  className="input !w-auto !py-1 text-xs" aria-label="Quelle">
+                  <option value="alle">Alle Quellen</option>
+                  {quellen.map(qu => <option key={qu} value={qu}>{qu} ({firmen.filter(f => f.quelle === qu).length})</option>)}
+                </select>
+              )}
             </div>
           )}
         </div>

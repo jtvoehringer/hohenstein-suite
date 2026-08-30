@@ -6,7 +6,8 @@
 
 ## Projekt
 - Internes Dashboard: CRM (inkl. CSV-Import /crm/import und Visitenkarten-Scan /crm/kontakte/visitenkarte; Firmen mit
-  `betriebsstandort`/`region` nach ÖWM-Logik – Betriebsstandort = generisches Weinbaugebiet inkl. Bergland, Region = Gebiet bzw. Bundesland, Migration 011) · E-Mail (IMAP) · E&A-Rechnung · Fakturierung (Angebote/Rechnungen/Gutschriften, Offene Posten) · Aufgaben · Verwaltung der software:112-Demo. Referenzsystem: software:112 (Ordner „ERP Software112").
+  `betriebsstandort`/`region` nach ÖWM-Logik – Betriebsstandort = generisches Weinbaugebiet inkl. Bergland, Region = Gebiet bzw. Bundesland, Migration 011 –
+  sowie `quelle` als auswertbares Feld, Migration 012: ÖWM-Betriebssuche, Leadliste, Visitenkarten-Scan, CSV-Import, Manuell) · E-Mail (IMAP) · E&A-Rechnung · Fakturierung (Angebote/Rechnungen/Gutschriften, Offene Posten) · Aufgaben · Verwaltung der software:112-Demo. Referenzsystem: software:112 (Ordner „ERP Software112").
 - Supabase-Projekt `hohenstein-suite` (Ref `usvniwfqozqkxdhjjumm`, eu-central-1). Vercel aus GitHub `main`.
 - Ein Mandant: `11111111-1111-4111-8111-111111111111` Hohenstein Consulting OG (E&A-Betriebsbeginn 01.01.2026).
 - Demo-Umgebung = Mandant „Weingut Musterhof (Demo)" `33333333-3333-4333-8333-333333333333` im software:112-Projekt

@@ -120,6 +120,14 @@ export default function FirmaForm({
           <label className="form-label">Zahlungsziel (Tage)</label>
           <input name="zahlungsziel_tage" type="number" min={0} max={365} defaultValue={initial?.zahlungsziel_tage ?? 14} className="input" />
         </div>
+        <div>
+          <label className="form-label">Quelle</label>
+          <input name="quelle" defaultValue={v('quelle')} list="quelle-vorschlaege" placeholder="z. B. Messe, Empfehlung …" className="input" />
+          <datalist id="quelle-vorschlaege">
+            <option value="Manuell" /><option value="Messe" /><option value="Empfehlung" />
+            <option value="Website" /><option value="Visitenkarten-Scan" /><option value="ÖWM-Betriebssuche" />
+          </datalist>
+        </div>
         <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-2 bg-hs-bg border border-hs-line rounded-lg px-4 py-3">
           <label className="flex items-center gap-2 text-sm text-hs-text cursor-pointer">
             <input type="checkbox" checked={isLead} onChange={e => setIsLead(e.target.checked)} className={check} />
