@@ -8,6 +8,7 @@ import { ladeKategorien, ladeKonten } from '@/lib/ea/server'
 import { fmtEuroMitZeichen, heuteIso } from '@/lib/format'
 import { tageDifferenz } from '@/lib/rechnungen/types'
 import type { EingangsrechnungRow } from '@/lib/rechnungen/verbindlichkeiten'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import VerbindlichkeitenClient from '@/components/rechnungen/VerbindlichkeitenClient'
 
 export const metadata: Metadata = { title: 'Verbindlichkeiten – Hohenstein Suite' }
@@ -31,11 +32,11 @@ export default async function VerbindlichkeitenPage({ searchParams }: { searchPa
   else if (filter === 'bezahlt') q = q.eq('status', 'bezahlt').order('bezahlt_am', { ascending: false }).limit(200)
   else q = q.order('datum', { ascending: false }).limit(300)
 
-  const [{ data }, kategorien, konten, { data: firmenRaw }, { data: offeneRaw }] = await Promise.all([
+  const [{ data }, kategorien, konten, firmenRaw, { data: offeneRaw }] = await Promise.all([
     q,
     ladeKategorien(supabase, tenantId, true),
     ladeKonten(supabase, tenantId),
-    (supabase.from('firmen') as R).select('id, name, ort, segment').eq('tenant_id', tenantId).eq('aktiv', true).order('name'),
+    alleZeilen(() => (supabase.from('firmen') as R).select('id, name, ort, segment').eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
     // Kennzahlen immer über alle offenen Posten (unabhängig vom Filter)
     (supabase.from('eingangsrechnungen') as R).select('betrag_brutto, faellig_am').eq('tenant_id', tenantId).eq('status', 'offen'),
   ])
@@ -55,7 +56,7 @@ export default async function VerbindlichkeitenPage({ searchParams }: { searchPa
   const bald = offene.filter(o => o.tage <= 0 && o.tage >= -7)
 
   const ausgabenKategorien = kategorien.filter(k => k.typ === 'ausgabe' || k.typ === 'beides').map(k => ({ id: k.id, name: k.name, ust_satz_std: k.ust_satz_std, abzugsfaehig_pct: k.abzugsfaehig_pct }))
-  const firmen = ((firmenRaw ?? []) as R[])
+  const firmen = (firmenRaw as R[])
     // Lieferanten zuerst, danach alle anderen Firmen
     .sort((a, b) => (a.segment === 'lieferant' ? 0 : 1) - (b.segment === 'lieferant' ? 0 : 1) || String(a.name).localeCompare(String(b.name), 'de'))
     .map(f => ({ id: f.id as string, name: f.name as string, ort: (f.ort ?? null) as string | null, lieferant: f.segment === 'lieferant' }))

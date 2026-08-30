@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import { aktivitaetLabel, kontaktName } from '@/lib/crm/types'
 import { heuteIso } from '@/lib/format'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import CRMUebersichtClient, { type KalenderEintrag } from './CRMUebersichtClient'
 
 export const metadata: Metadata = { title: 'Kalender – Hohenstein Suite' }
@@ -23,16 +24,16 @@ export default async function CRMKalenderPage({ searchParams }: { searchParams: 
   const userId = user?.id ?? null
   const heute = heuteIso()
 
-  const [{ data: aRaw }, { data: kRaw }, { data: fRaw }] = await Promise.all([
+  const [{ data: aRaw }, kRaw, fRaw] = await Promise.all([
     (supabase.from('aktivitaeten') as any)
       .select('id, kontakt_id, firma_id, art, betreff, beschreibung, datum, bis_datum, ganztags, uhrzeit_von, uhrzeit_bis, erledigt, ist_privat, erstellt_von, kontakte:kontakt_id(vorname, nachname), firmen:firma_id(name)')
       .eq('tenant_id', tenantId)
       .not('art', 'in', '(notiz,email)')
       .order('datum', { ascending: true }).order('uhrzeit_von', { ascending: true, nullsFirst: true }),
-    (supabase.from('kontakte') as any)
-      .select('id, vorname, nachname, firmen:firma_id(name)').eq('tenant_id', tenantId).eq('aktiv', true).order('nachname'),
-    (supabase.from('firmen') as any)
-      .select('id, name, ort').eq('tenant_id', tenantId).eq('aktiv', true).order('name'),
+    alleZeilen(() => (supabase.from('kontakte') as any)
+      .select('id, vorname, nachname, firmen:firma_id(name)').eq('tenant_id', tenantId).eq('aktiv', true).order('nachname').order('id')),
+    alleZeilen(() => (supabase.from('firmen') as any)
+      .select('id, name, ort').eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
   ])
 
   // Private Termine anderer Nutzer sind per RLS bereits ausgeblendet – zur Sicherheit nochmals filtern

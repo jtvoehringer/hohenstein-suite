@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import type { KontaktRow } from '@/lib/crm/types'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import KontakteClient from './KontakteClient'
 
 export const metadata: Metadata = { title: 'Kontakte – Hohenstein Suite' }
@@ -18,13 +19,13 @@ export default async function KontaktePage({ searchParams }: { searchParams: Pro
   const writeOk  = canWrite(membership.role)
   const supabase = await createSupabaseServerClient()
 
-  const [{ data: kRaw }, { data: fRaw }] = await Promise.all([
-    (supabase.from('kontakte') as any)
+  const [kRaw, fRaw] = await Promise.all([
+    alleZeilen(() => (supabase.from('kontakte') as any)
       .select('id, kundennummer, vorname, nachname, segment, firma_id, firmen:firma_id(name), position, email, telefon_vorwahl, telefon, mobil_vorwahl, mobil, strasse, plz, ort, land, geburtsdatum, sprache, ansprechpartner_intern, is_lead, notizen, aktiv, erstellt_am')
       .eq('tenant_id', tenantId).eq('aktiv', true)
-      .order('nachname').order('vorname'),
-    (supabase.from('firmen') as any)
-      .select('id, name').eq('tenant_id', tenantId).eq('aktiv', true).order('name'),
+      .order('nachname').order('vorname').order('id')),
+    alleZeilen(() => (supabase.from('firmen') as any)
+      .select('id, name').eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
   ])
 
   const kontakte: KontaktRow[] = ((kRaw ?? []) as R[]).map(k => ({

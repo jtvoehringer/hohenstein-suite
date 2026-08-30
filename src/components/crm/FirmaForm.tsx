@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { SEGMENTE } from '@/lib/crm/types'
+import { SEGMENTE, BETRIEBSSTANDORTE, regionenFuer } from '@/lib/crm/types'
 import type { FirmaRow } from '@/lib/crm/types'
 import { createFirma, updateFirma } from '@/app/(dashboard)/crm/actions'
 import { LAENDER, VORWAHLEN } from './crmUtils'
@@ -21,6 +21,8 @@ export default function FirmaForm({
   const [isLead, setIsLead]             = useState(initial?.is_lead ?? true)
   const [istKunde, setIstKunde]         = useState(initial?.ist_kunde ?? true)
   const [istLieferant, setIstLieferant] = useState(initial?.ist_lieferant ?? false)
+  const [standort, setStandort]         = useState(initial?.betriebsstandort ?? '')
+  const [region, setRegion]             = useState(initial?.region ?? '')
   const [fehler, setFehler]             = useState<string | null>(null)
   const v = (f: keyof FirmaRow) => (initial?.[f] ?? '') as string
 
@@ -78,6 +80,23 @@ export default function FirmaForm({
           <label className="form-label">Land</label>
           <select name="land" defaultValue={initial?.land ?? 'AT'} className="input">
             {LAENDER.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="form-label">Betriebsstandort</label>
+          <select name="betriebsstandort" value={standort} className="input"
+            onChange={e => { setStandort(e.target.value); setRegion('') }}>
+            <option value="">–</option>
+            {BETRIEBSSTANDORTE.map(b => <option key={b.value} value={b.value}>{b.value}</option>)}
+            {standort && !BETRIEBSSTANDORTE.some(b => b.value === standort) && <option value={standort}>{standort}</option>}
+          </select>
+        </div>
+        <div>
+          <label className="form-label">Region</label>
+          <select name="region" value={region} onChange={e => setRegion(e.target.value)} className="input" disabled={!standort && !region}>
+            <option value="">–</option>
+            {regionenFuer(standort).map(r => <option key={r} value={r}>{r}</option>)}
+            {region && !regionenFuer(standort).includes(region) && <option value={region}>{region}</option>}
           </select>
         </div>
         <div>

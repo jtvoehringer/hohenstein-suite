@@ -284,6 +284,8 @@ export default function FirmaDetailClient({
               <p className="text-sm text-hs-text-2">Keine Kontaktdaten hinterlegt.</p>
             )}
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs pt-2 border-t border-hs-line">
+              {firma.betriebsstandort && (<><dt className="text-hs-text-2">Betriebsstandort</dt><dd className="text-hs-text">{firma.betriebsstandort}</dd></>)}
+              {firma.region && (<><dt className="text-hs-text-2">Region</dt><dd className="text-hs-text">{firma.region}</dd></>)}
               <dt className="text-hs-text-2">UID-Nummer</dt><dd className="text-hs-text font-mono">{firma.uid_nummer ?? '–'}</dd>
               <dt className="text-hs-text-2">Zahlungsziel</dt><dd className="text-hs-text">{firma.zahlungsziel_tage === 0 ? 'bei Erhalt' : `${firma.zahlungsziel_tage} Tage`}</dd>
             </dl>

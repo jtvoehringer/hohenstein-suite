@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership } from '@/lib/auth/roles'
 import { toCSV } from '@/lib/utils/csv'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import { segmentLabel } from '@/lib/crm/types'
 import { fmtDatum, heuteIso } from '@/lib/format'
 
@@ -16,14 +17,13 @@ export async function GET() {
   if (!membership) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
 
   const supabase = await createSupabaseServerClient()
-  const { data, error } = await (supabase.from('firmen') as any)
-    .select('kundennummer, name, segment, strasse, plz, ort, land, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, notizen, erstellt_am')
+  const data = await alleZeilen(() => (supabase.from('firmen') as any)
+    .select('kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, notizen, erstellt_am')
     .eq('tenant_id', membership.tenantId).eq('aktiv', true)
-    .order('name')
-  if (error) return NextResponse.json({ error: (error as R).message }, { status: 500 })
+    .order('name').order('kundennummer'))
 
   const ja = (b: unknown) => (b ? 'Ja' : 'Nein')
-  const rows = ((data ?? []) as R[]).map(r => ({
+  const rows = (data as R[]).map(r => ({
     kundennummer:      r.kundennummer,
     name:              r.name,
     segment:           segmentLabel(r.segment),
@@ -31,6 +31,8 @@ export async function GET() {
     plz:               r.plz,
     ort:               r.ort,
     land:              r.land,
+    betriebsstandort:  r.betriebsstandort,
+    region:            r.region,
     telefon:           r.telefon ? `${r.telefon_vorwahl ?? '+43'} ${r.telefon}` : '',
     email:             r.email,
     website:           r.website,
@@ -51,6 +53,8 @@ export async function GET() {
     { key: 'plz',               header: 'PLZ' },
     { key: 'ort',               header: 'Ort' },
     { key: 'land',              header: 'Land' },
+    { key: 'betriebsstandort',  header: 'Betriebsstandort' },
+    { key: 'region',            header: 'Region' },
     { key: 'telefon',           header: 'Telefon' },
     { key: 'email',             header: 'E-Mail' },
     { key: 'website',           header: 'Website' },

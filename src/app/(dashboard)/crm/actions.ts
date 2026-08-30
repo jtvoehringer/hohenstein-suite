@@ -146,6 +146,8 @@ function firmaPayload(fd: FormData): R {
     plz:               str(fd, 'plz'),
     ort:               str(fd, 'ort'),
     land:              str(fd, 'land') ?? 'AT',
+    betriebsstandort:  str(fd, 'betriebsstandort'),
+    region:            str(fd, 'region'),
     telefon_vorwahl:   str(fd, 'telefon_vorwahl') ?? '+43',
     telefon:           str(fd, 'telefon'),
     email:             str(fd, 'email'),

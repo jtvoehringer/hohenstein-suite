@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import { normBool, normDatum, normLand, normSegment, type ImportTyp } from '@/lib/crm/importCsv'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
@@ -81,6 +82,8 @@ function firmaWerte(w: Record<string, string>): R {
     plz:               norm(w.plz) || null,
     ort:               norm(w.ort) || null,
     land:              normLand(w.land ?? ''),
+    betriebsstandort:  norm(w.betriebsstandort) || null,
+    region:            norm(w.region) || null,
     telefon:           norm(w.telefon) || null,
     email:             EMAIL_RE.test(ci(w.email)) ? ci(w.email) : null,
     website:           norm(w.website) || null,
@@ -94,8 +97,8 @@ function firmaWerte(w: Record<string, string>): R {
 }
 
 async function importiereFirmen(supabase: R, tenantId: string, zeilen: { zeile: number; werte: Record<string, string> }[], opt: ImportOptionen): Promise<ZeilenErgebnis[]> {
-  const { data: vorhandenRaw } = await (supabase.from('firmen') as R)
-    .select('id, name, uid_nummer').eq('tenant_id', tenantId)
+  const vorhandenRaw = await alleZeilen(() => (supabase.from('firmen') as R)
+    .select('id, name, uid_nummer').eq('tenant_id', tenantId).order('id'))
   const nachName = new Map<string, string>()
   const nachUid  = new Map<string, string>()
   for (const f of (vorhandenRaw ?? []) as R[]) {
@@ -165,9 +168,9 @@ function kontaktWerte(w: Record<string, string>): R {
 }
 
 async function importiereKontakte(supabase: R, tenantId: string, zeilen: { zeile: number; werte: Record<string, string> }[], opt: ImportOptionen): Promise<ZeilenErgebnis[]> {
-  const [{ data: kontakteRaw }, { data: firmenRaw }] = await Promise.all([
-    (supabase.from('kontakte') as R).select('id, vorname, nachname, email').eq('tenant_id', tenantId),
-    (supabase.from('firmen') as R).select('id, name').eq('tenant_id', tenantId),
+  const [kontakteRaw, firmenRaw] = await Promise.all([
+    alleZeilen(() => (supabase.from('kontakte') as R).select('id, vorname, nachname, email').eq('tenant_id', tenantId).order('id')),
+    alleZeilen(() => (supabase.from('firmen') as R).select('id, name').eq('tenant_id', tenantId).order('id')),
   ])
   const nachEmail = new Map<string, string>()
   const nachNamen = new Map<string, string>()

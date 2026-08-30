@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import type { FirmaRow } from '@/lib/crm/types'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import FirmenClient from './FirmenClient'
 
 export const metadata: Metadata = { title: 'Firmen – Hohenstein Suite' }
@@ -18,12 +19,12 @@ export default async function FirmenPage({ searchParams }: { searchParams: Promi
   const writeOk  = canWrite(membership.role)
   const supabase = await createSupabaseServerClient()
 
-  const [{ data: fRaw }, { data: kRaw }] = await Promise.all([
-    (supabase.from('firmen') as any)
-      .select('id, kundennummer, name, segment, strasse, plz, ort, land, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, notizen, aktiv, erstellt_am')
-      .eq('tenant_id', tenantId).eq('aktiv', true).order('name'),
-    (supabase.from('kontakte') as any)
-      .select('firma_id').eq('tenant_id', tenantId).eq('aktiv', true).not('firma_id', 'is', null),
+  const [fRaw, kRaw] = await Promise.all([
+    alleZeilen(() => (supabase.from('firmen') as any)
+      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, notizen, aktiv, erstellt_am')
+      .eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
+    alleZeilen(() => (supabase.from('kontakte') as any)
+      .select('id, firma_id').eq('tenant_id', tenantId).eq('aktiv', true).not('firma_id', 'is', null).order('id')),
   ])
 
   const anzahlKontakte: Record<string, number> = {}
@@ -32,6 +33,7 @@ export default async function FirmenPage({ searchParams }: { searchParams: Promi
   const firmen: FirmaRow[] = ((fRaw ?? []) as R[]).map(f => ({
     id: f.id, kundennummer: f.kundennummer ?? null, name: f.name, segment: f.segment,
     strasse: f.strasse ?? null, plz: f.plz ?? null, ort: f.ort ?? null, land: f.land ?? 'AT',
+    betriebsstandort: f.betriebsstandort ?? null, region: f.region ?? null,
     telefon_vorwahl: f.telefon_vorwahl ?? '+43', telefon: f.telefon ?? null,
     email: f.email ?? null, website: f.website ?? null, uid_nummer: f.uid_nummer ?? null,
     zahlungsziel_tage: f.zahlungsziel_tage ?? 14,

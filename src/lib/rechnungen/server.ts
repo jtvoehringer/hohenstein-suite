@@ -1,6 +1,7 @@
 // ── Serverseitige Helfer der Fakturierung (nur Server Components/Actions/Routes)
 // Nie in Client-Komponenten importieren. Spaltennamen lt. 008_fakturierung.sql.
 import { kontaktName } from '@/lib/crm/types'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import type { Absender, BelegRow, LeistungRow, PositionRow, ZahlungRow } from './types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,13 +134,13 @@ export type EmpfaengerKontakt = {
 
 /** Aktive Firmen und Kontakte für die Empfängerwahl */
 export async function ladeEmpfaengerAuswahl(supabase: SB, tenantId: string): Promise<{ firmen: EmpfaengerFirma[]; kontakte: EmpfaengerKontakt[] }> {
-  const [{ data: f }, { data: k }] = await Promise.all([
-    (supabase.from('firmen') as SB)
+  const [f, k] = await Promise.all([
+    alleZeilen(() => (supabase.from('firmen') as SB)
       .select('id, name, kundennummer, strasse, plz, ort, land, uid_nummer, email, zahlungsziel_tage')
-      .eq('tenant_id', tenantId).eq('aktiv', true).order('name'),
-    (supabase.from('kontakte') as SB)
+      .eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
+    alleZeilen(() => (supabase.from('kontakte') as SB)
       .select('id, vorname, nachname, kundennummer, firma_id, strasse, plz, ort, land, email')
-      .eq('tenant_id', tenantId).eq('aktiv', true).order('nachname'),
+      .eq('tenant_id', tenantId).eq('aktiv', true).order('nachname').order('id')),
   ])
   return {
     firmen: ((f ?? []) as R[]).map(x => ({

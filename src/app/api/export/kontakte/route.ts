@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership } from '@/lib/auth/roles'
 import { toCSV } from '@/lib/utils/csv'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import { segmentLabel } from '@/lib/crm/types'
 import { fmtDatum, heuteIso } from '@/lib/format'
 
@@ -16,13 +17,12 @@ export async function GET() {
   if (!membership) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
 
   const supabase = await createSupabaseServerClient()
-  const { data, error } = await (supabase.from('kontakte') as any)
+  const data = await alleZeilen(() => (supabase.from('kontakte') as any)
     .select('kundennummer, vorname, nachname, segment, firmen:firma_id(name), position, email, telefon_vorwahl, telefon, mobil_vorwahl, mobil, strasse, plz, ort, land, geburtsdatum, sprache, ansprechpartner_intern, is_lead, notizen, erstellt_am')
     .eq('tenant_id', membership.tenantId).eq('aktiv', true)
-    .order('nachname').order('vorname')
-  if (error) return NextResponse.json({ error: (error as R).message }, { status: 500 })
+    .order('nachname').order('vorname').order('kundennummer'))
 
-  const rows = ((data ?? []) as R[]).map(r => ({
+  const rows = (data as R[]).map(r => ({
     kundennummer:  r.kundennummer,
     vorname:       r.vorname,
     nachname:      r.nachname,

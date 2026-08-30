@@ -1,6 +1,7 @@
 // ── Serverseitige Helfer der E&A-Rechnung (nur Server Components/Actions) ────
 // Nie in Client-Komponenten importieren (nimmt den Server-Supabase-Client entgegen).
 import type { KategorieOption, KontoOption, FirmaOption } from '@/lib/ea/types'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
@@ -111,11 +112,11 @@ export async function ladeKonten(supabase: SB, tenantId: string): Promise<KontoO
 
 /** Aktive Firmen (Geschäftspartner) für Auswahlfelder */
 export async function ladeFirmen(supabase: SB, tenantId: string): Promise<FirmaOption[]> {
-  const { data } = await (supabase.from('firmen') as SB)
+  const data = await alleZeilen(() => (supabase.from('firmen') as SB)
     .select('id, name')
     .eq('tenant_id', tenantId).eq('aktiv', true)
-    .order('name')
-  return ((data ?? []) as R[]).map(f => ({ id: f.id as string, name: f.name as string }))
+    .order('name').order('id'))
+  return (data as R[]).map(f => ({ id: f.id as string, name: f.name as string }))
 }
 
 /** RPC pruefe_ea_zeitraum_offen – { offen, grund } */

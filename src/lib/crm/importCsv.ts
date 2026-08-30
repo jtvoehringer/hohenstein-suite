@@ -71,6 +71,8 @@ export const FIRMEN_FELDER: FeldDef[] = [
   { key: 'plz',               label: 'PLZ',               synonyme: ['plz', 'postleitzahl', 'zip'], beispiel: '3500' },
   { key: 'ort',               label: 'Ort',               synonyme: ['ort', 'stadt', 'gemeinde', 'city'], beispiel: 'Krems an der Donau' },
   { key: 'land',              label: 'Land',              synonyme: ['land', 'country', 'staat'], hinweis: 'AT, DE, CH … oder ausgeschrieben', beispiel: 'AT' },
+  { key: 'betriebsstandort',  label: 'Betriebsstandort',  synonyme: ['betriebsstandort', 'weinbaugebiet', 'standort', 'gebiet'], hinweis: 'Niederösterreich, Burgenland, Steiermark, Wien, Bergland', beispiel: 'Niederösterreich' },
+  { key: 'region',            label: 'Region',            synonyme: ['region', 'anbaugebiet', 'weinbauregion'], hinweis: 'z. B. Kamptal – im Bergland das Bundesland', beispiel: 'Kremstal' },
   { key: 'telefon',           label: 'Telefon',           synonyme: ['telefon', 'tel', 'telefonnummer', 'phone', 'festnetz'], beispiel: '+43 2732 12345' },
   { key: 'email',             label: 'E-Mail',            synonyme: ['email', 'e-mail', 'mail', 'emailadresse', 'e-mail-adresse'], beispiel: 'office@beispielhof.at' },
   { key: 'website',           label: 'Website',           synonyme: ['website', 'web', 'homepage', 'url'], beispiel: 'beispielhof.at' },

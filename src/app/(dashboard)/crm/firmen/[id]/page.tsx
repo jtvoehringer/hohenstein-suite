@@ -33,7 +33,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
 
   const [{ data: fRaw }, { data: kRaw }, { data: kfRaw }, { data: pRaw }, { data: alleKRaw }] = await Promise.all([
     (supabase.from('firmen') as any)
-      .select('id, kundennummer, name, segment, strasse, plz, ort, land, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, notizen, aktiv, erstellt_am')
+      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, notizen, aktiv, erstellt_am')
       .eq('id', id).eq('tenant_id', tenantId).maybeSingle(),
     // Ansprechpartner 1: Kontakte mit firma_id = diese Firma
     (supabase.from('kontakte') as any)
@@ -57,6 +57,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
   const firma: FirmaRow = {
     id: f.id, kundennummer: f.kundennummer ?? null, name: f.name, segment: f.segment,
     strasse: f.strasse ?? null, plz: f.plz ?? null, ort: f.ort ?? null, land: f.land ?? 'AT',
+    betriebsstandort: f.betriebsstandort ?? null, region: f.region ?? null,
     telefon_vorwahl: f.telefon_vorwahl ?? '+43', telefon: f.telefon ?? null,
     email: f.email ?? null, website: f.website ?? null, uid_nummer: f.uid_nummer ?? null,
     zahlungsziel_tage: f.zahlungsziel_tage ?? 14,

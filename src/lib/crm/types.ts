@@ -20,6 +20,22 @@ export function segmentFarbe(value: string | null | undefined): string {
   return SEGMENTE.find(s => s.value === value)?.farbe ?? 'bg-gray-100 text-gray-600'
 }
 
+// ── Betriebsstandorte & Regionen (ÖWM-Logik, Textfelder auf firmen) ───────────
+// Betriebsstandort = generisches Weinbaugebiet; Region = Gebiet innerhalb davon
+// (im Bergland: das Bundesland). Freitext in der DB – die Listen sind Vorschläge.
+
+export const BETRIEBSSTANDORTE: { value: string; regionen: string[] }[] = [
+  { value: 'Niederösterreich', regionen: ['Carnuntum', 'Kamptal', 'Kremstal', 'Thermenregion', 'Traisental', 'Wachau', 'Wagram', 'Weinviertel'] },
+  { value: 'Burgenland',       regionen: ['Eisenberg', 'Leithaberg', 'Mittelburgenland', 'Neusiedlersee', 'Rosalia', 'Ruster Ausbruch', 'Südburgenland'] },
+  { value: 'Steiermark',       regionen: ['Südsteiermark', 'Vulkanland Steiermark', 'Weststeiermark'] },
+  { value: 'Wien',             regionen: ['Wien'] },
+  { value: 'Bergland',         regionen: ['Kärnten', 'Oberösterreich', 'Salzburg', 'Tirol', 'Vorarlberg'] },
+]
+
+export function regionenFuer(betriebsstandort: string | null | undefined): string[] {
+  return BETRIEBSSTANDORTE.find(b => b.value === betriebsstandort)?.regionen ?? []
+}
+
 // ── Pipeline-Stufen (Enum pipeline_stufe) ─────────────────────────────────────
 
 export const PIPELINE_STUFEN = [
@@ -106,6 +122,8 @@ export type FirmaRow = {
   plz: string | null
   ort: string | null
   land: string | null
+  betriebsstandort: string | null
+  region: string | null
   telefon_vorwahl: string | null
   telefon: string | null
   email: string | null
