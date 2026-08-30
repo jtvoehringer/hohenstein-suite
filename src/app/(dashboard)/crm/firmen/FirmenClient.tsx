@@ -33,10 +33,24 @@ export default function FirmenClient({
   const [standort, setStandort] = useState('alle')
   const [region, setRegion]     = useState('alle')
   const [quelle, setQuelle]     = useState('alle')
+  const [buchstabe, setBuchstabe] = useState('alle')
 
   const quellen = useMemo(() =>
     [...new Set(firmen.map(f => f.quelle).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'de')),
   [firmen])
+
+  // Alphaleiste: Anfangsbuchstabe des Firmennamens (Umlaute eingeordnet, Ziffern/Sonstiges unter „#")
+  const anfangsBuchstabe = (name: string): string => {
+    const c = (name.trim().charAt(0) || '').toUpperCase()
+    const map: Record<string, string> = { 'Ä': 'A', 'Ö': 'O', 'Ü': 'U', 'É': 'E', 'È': 'E', 'À': 'A' }
+    const b = map[c] ?? c
+    return b >= 'A' && b <= 'Z' ? b : '#'
+  }
+  const buchstabenVorhanden = useMemo(() => {
+    const s = new Set(firmen.map(f => anfangsBuchstabe(f.name)))
+    return s
+  }, [firmen])
+  const ALPHABET = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ...(buchstabenVorhanden.has('#') ? ['#'] : [])]
 
   // Auswahllisten aus den tatsächlich vorhandenen Werten (Region abhängig vom Betriebsstandort)
   const standorte = useMemo(() => {
@@ -60,11 +74,13 @@ export default function FirmenClient({
       if (standort !== 'alle' && f.betriebsstandort !== standort) return false
       if (region !== 'alle' && f.region !== region) return false
       if (quelle !== 'alle' && f.quelle !== quelle) return false
+      if (buchstabe !== 'alle' && anfangsBuchstabe(f.name) !== buchstabe) return false
       if (!q) return true
       const text = [f.kundennummer, f.name, f.email, f.telefon, f.ort, f.plz, f.uid_nummer, f.website, f.betriebsstandort, f.region, f.quelle].filter(Boolean).join(' ').toLowerCase()
       return text.includes(q)
     })
-  }, [firmen, suche, segment, filter, standort, region, quelle])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firmen, suche, segment, filter, standort, region, quelle, buchstabe])
 
   const nLead = firmen.filter(f => f.is_lead).length
   const nKunde = firmen.filter(f => f.ist_kunde && !f.is_lead).length
@@ -80,6 +96,26 @@ export default function FirmenClient({
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-hs-line p-3 space-y-3">
+        {/* Alphaleiste */}
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[13px] leading-none">
+          <button type="button" onClick={() => setBuchstabe('alle')}
+            className={`px-2 py-1 rounded-md font-medium transition-colors ${buchstabe === 'alle' ? 'bg-hs-teal text-white' : 'text-hs-text-1 hover:text-hs-text hover:bg-hs-bg'}`}>
+            Alle
+          </button>
+          {ALPHABET.map(b => {
+            const vorhanden = buchstabenVorhanden.has(b)
+            return (
+              <button key={b} type="button" disabled={!vorhanden}
+                onClick={() => setBuchstabe(v => v === b ? 'alle' : b)}
+                className={`w-7 py-1 rounded-md font-medium transition-colors ${
+                  buchstabe === b ? 'bg-hs-teal text-white'
+                  : vorhanden ? 'text-hs-text-1 hover:text-hs-text hover:bg-hs-bg'
+                  : 'text-hs-tertiary/40 cursor-default'}`}>
+                {b}
+              </button>
+            )
+          })}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-72">
             <Search size={15} strokeWidth={1.75} className="absolute left-3 top-1/2 -translate-y-1/2 text-hs-tertiary" />
