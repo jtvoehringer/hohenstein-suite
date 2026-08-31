@@ -4,6 +4,7 @@ import { CreditCard } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canAdmin } from '@/lib/auth/roles'
 import { s112AlleMandanten, s112NeueZahlungen, s112Konfiguriert, s112KeyDiagnose, type S112Mandant } from '@/lib/s112/admin'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import { Card, Hinweis, Tile } from '@/components/dashboard/ui'
 import { MandantenTabelle, SyncLeiste, type FirmaOption, type MandantRow } from './Software112Client'
 
@@ -39,9 +40,13 @@ export default async function Software112Page() {
     } catch (e) { ladeFehler = e instanceof Error ? e.message : String(e) }
   }
 
-  const { data: firmenRaw } = await (supabase.from('firmen') as R)
-    .select('id, name, s112_tenant_id').eq('tenant_id', membership.tenantId).eq('aktiv', true).order('name')
-  const firmen = ((firmenRaw ?? []) as R[]).map(f => ({ id: f.id as string, name: f.name as string, s112TenantId: (f.s112_tenant_id as string | null) ?? null }))
+  // PostgREST liefert pro Anfrage max. 1000 Zeilen - bei 5000+ Firmen im CRM
+  // (ÖWM-Betriebssuche-Importe) wäre "Weingut ..." (nahe Ende der alphabetischen
+  // Sortierung) sonst nie in der Trefferliste erschienen. alleZeilen() blättert
+  // in 1000er-Seiten nach, analog ladeFirmen() in lib/ea/server.ts.
+  const firmenRaw = await alleZeilen<R>(() => (supabase.from('firmen') as R)
+    .select('id, name, s112_tenant_id').eq('tenant_id', membership.tenantId).eq('aktiv', true).order('name').order('id'))
+  const firmen = firmenRaw.map(f => ({ id: f.id as string, name: f.name as string, s112TenantId: (f.s112_tenant_id as string | null) ?? null }))
   const firmaJeMandant = new Map(firmen.filter(f => f.s112TenantId).map(f => [f.s112TenantId as string, { id: f.id, name: f.name }]))
   const unverknuepfteFirmen: FirmaOption[] = firmen.filter(f => !f.s112TenantId).map(f => ({ id: f.id, name: f.name }))
 
