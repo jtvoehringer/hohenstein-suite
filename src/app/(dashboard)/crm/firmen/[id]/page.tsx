@@ -5,6 +5,7 @@ import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import type { FirmaRow } from '@/lib/crm/types'
 import { kontaktName } from '@/lib/crm/types'
 import type { AktivitaetMitDokumenten, PipelineKurz } from '@/components/crm/crmUtils'
+import { ladeMandantMitglieder } from '@/lib/aufgaben/mitglieder'
 import FirmaDetailClient, { type Ansprechpartner } from './FirmaDetailClient'
 
 export const dynamic = 'force-dynamic'
@@ -31,9 +32,9 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
   const writeOk  = canWrite(membership.role)
   const supabase = await createSupabaseServerClient()
 
-  const [{ data: fRaw }, { data: kRaw }, { data: kfRaw }, { data: pRaw }, { data: alleKRaw }] = await Promise.all([
+  const [{ data: fRaw }, { data: kRaw }, { data: kfRaw }, { data: pRaw }, mitglieder] = await Promise.all([
     (supabase.from('firmen') as any)
-      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, notizen, aktiv, erstellt_am')
+      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, account_manager, notizen, aktiv, erstellt_am')
       .eq('id', id).eq('tenant_id', tenantId).maybeSingle(),
     // Ansprechpartner 1: Kontakte mit firma_id = diese Firma
     (supabase.from('kontakte') as any)
@@ -47,9 +48,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
       .select('id, stufe, titel, kategorie, wert_euro, wahrscheinlichkeit, erwartetes_datum, erledigt')
       .eq('firma_id', id).eq('tenant_id', tenantId)
       .order('aktualisiert_am', { ascending: false }),
-    (supabase.from('kontakte') as any)
-      .select('id, vorname, nachname, firma_id, firmen:firma_id(name)')
-      .eq('tenant_id', tenantId).eq('aktiv', true).order('nachname'),
+    ladeMandantMitglieder(tenantId),
   ])
   if (!fRaw) notFound()
 
@@ -62,7 +61,8 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
     email: f.email ?? null, website: f.website ?? null, uid_nummer: f.uid_nummer ?? null,
     zahlungsziel_tage: f.zahlungsziel_tage ?? 14,
     is_lead: !!f.is_lead, ist_kunde: !!f.ist_kunde, ist_lieferant: !!f.ist_lieferant,
-    quelle: f.quelle ?? null, notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
+    quelle: f.quelle ?? null, account_manager: f.account_manager ?? null,
+    notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
   }
 
   // Ansprechpartner zusammenführen (Primärzuordnung + kontakt_firmen), Duplikate vermeiden
@@ -121,17 +121,13 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
     wahrscheinlichkeit: p.wahrscheinlichkeit ?? null, erwartetes_datum: p.erwartetes_datum ?? null, erledigt: !!p.erledigt,
   }))
 
-  const alleKontakte = ((alleKRaw ?? []) as R[]).map(k => ({
-    id: k.id as string, name: kName(k), sub: (k.firmen as R | null)?.name ?? null,
-  }))
-
   return (
     <FirmaDetailClient
       firma={firma}
       ansprechpartner={ansprechpartner}
       aktivitaeten={aktivitaeten}
       pipeline={pipeline}
-      alleKontakte={alleKontakte}
+      mitglieder={mitglieder}
       writeOk={writeOk}
     />
   )

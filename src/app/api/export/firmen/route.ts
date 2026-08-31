@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership } from '@/lib/auth/roles'
 import { toCSV } from '@/lib/utils/csv'
 import { alleZeilen } from '@/lib/supabase/alleZeilen'
+import { ladeMandantMitglieder, mitgliederMap } from '@/lib/aufgaben/mitglieder'
 import { segmentLabel } from '@/lib/crm/types'
 import { fmtDatum, heuteIso } from '@/lib/format'
 
@@ -17,10 +18,14 @@ export async function GET() {
   if (!membership) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
 
   const supabase = await createSupabaseServerClient()
-  const data = await alleZeilen(() => (supabase.from('firmen') as any)
-    .select('kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, notizen, erstellt_am')
-    .eq('tenant_id', membership.tenantId).eq('aktiv', true)
-    .order('name').order('kundennummer'))
+  const [data, mitglieder] = await Promise.all([
+    alleZeilen(() => (supabase.from('firmen') as any)
+      .select('kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, account_manager, notizen, erstellt_am')
+      .eq('tenant_id', membership.tenantId).eq('aktiv', true)
+      .order('name').order('kundennummer')),
+    ladeMandantMitglieder(membership.tenantId),
+  ])
+  const amName = mitgliederMap(mitglieder)
 
   const ja = (b: unknown) => (b ? 'Ja' : 'Nein')
   const rows = (data as R[]).map(r => ({
@@ -42,6 +47,7 @@ export async function GET() {
     kunde:             ja(r.ist_kunde),
     lieferant:         ja(r.ist_lieferant),
     quelle:            r.quelle,
+    account_manager:   r.account_manager ? (amName.get(r.account_manager) ?? '') : '',
     notizen:           r.notizen,
     erstellt_am:       fmtDatum(r.erstellt_am),
   }))
@@ -65,6 +71,7 @@ export async function GET() {
     { key: 'kunde',             header: 'Kunde' },
     { key: 'lieferant',         header: 'Lieferant' },
     { key: 'quelle',            header: 'Quelle' },
+    { key: 'account_manager',   header: 'Account Manager' },
     { key: 'notizen',           header: 'Notizen' },
     { key: 'erstellt_am',       header: 'Angelegt am' },
   ])

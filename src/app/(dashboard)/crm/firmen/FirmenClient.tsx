@@ -15,10 +15,12 @@ import { fmtTelefon } from '@/components/crm/crmUtils'
 type Filter = 'alle' | 'lead' | 'kunde' | 'lieferant'
 
 export default function FirmenClient({
-  firmen, anzahlKontakte, writeOk, initialFilter = 'alle', openNeu = false, initialSegment,
+  firmen, anzahlKontakte, mitglieder, writeOk, initialFilter = 'alle', openNeu = false, initialSegment,
 }: {
   firmen: FirmaRow[]
   anzahlKontakte: Record<string, number>
+  /** Team-Mitglieder des Mandanten für den Account-Manager-Filter */
+  mitglieder: { id: string; name: string }[]
   writeOk: boolean
   initialFilter?: Filter
   openNeu?: boolean
@@ -33,6 +35,7 @@ export default function FirmenClient({
   const [standort, setStandort] = useState('alle')
   const [region, setRegion]     = useState('alle')
   const [quelle, setQuelle]     = useState('alle')
+  const [manager, setManager]   = useState('alle')
   const [buchstabe, setBuchstabe] = useState('alle')
 
   const quellen = useMemo(() =>
@@ -74,13 +77,15 @@ export default function FirmenClient({
       if (standort !== 'alle' && f.betriebsstandort !== standort) return false
       if (region !== 'alle' && f.region !== region) return false
       if (quelle !== 'alle' && f.quelle !== quelle) return false
+      if (manager === 'ohne' && f.account_manager) return false
+      if (manager !== 'alle' && manager !== 'ohne' && f.account_manager !== manager) return false
       if (buchstabe !== 'alle' && anfangsBuchstabe(f.name) !== buchstabe) return false
       if (!q) return true
       const text = [f.kundennummer, f.name, f.email, f.telefon, f.ort, f.plz, f.uid_nummer, f.website, f.betriebsstandort, f.region, f.quelle].filter(Boolean).join(' ').toLowerCase()
       return text.includes(q)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firmen, suche, segment, filter, standort, region, quelle, buchstabe])
+  }, [firmen, suche, segment, filter, standort, region, quelle, manager, buchstabe])
 
   const nLead = firmen.filter(f => f.is_lead).length
   const nKunde = firmen.filter(f => f.ist_kunde && !f.is_lead).length
@@ -153,27 +158,37 @@ export default function FirmenClient({
               </button>
             )
           })}
-          {standorte.length > 0 && (
-            <div className="flex items-center gap-1.5 ml-auto">
-              <select value={standort} onChange={e => { setStandort(e.target.value); setRegion('alle') }}
-                className="input !w-auto !py-1 text-xs" aria-label="Betriebsstandort">
-                <option value="alle">Alle Betriebsstandorte</option>
-                {standorte.map(s => <option key={s} value={s}>{s} ({firmen.filter(f => f.betriebsstandort === s).length})</option>)}
+          <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+            {mitglieder.length > 0 && (
+              <select value={manager} onChange={e => setManager(e.target.value)}
+                className="input !w-auto !py-1 text-xs" aria-label="Account Manager">
+                <option value="alle">Alle Account Manager</option>
+                {mitglieder.map(m => <option key={m.id} value={m.id}>{m.name} ({firmen.filter(f => f.account_manager === m.id).length})</option>)}
+                <option value="ohne">Ohne Account Manager ({firmen.filter(f => !f.account_manager).length})</option>
               </select>
-              <select value={region} onChange={e => setRegion(e.target.value)}
-                className="input !w-auto !py-1 text-xs" aria-label="Region" disabled={regionen.length === 0}>
-                <option value="alle">Alle Regionen</option>
-                {regionen.map(r => <option key={r} value={r}>{r} ({firmen.filter(f => f.region === r && (standort === 'alle' || f.betriebsstandort === standort)).length})</option>)}
-              </select>
-              {quellen.length > 0 && (
-                <select value={quelle} onChange={e => setQuelle(e.target.value)}
-                  className="input !w-auto !py-1 text-xs" aria-label="Quelle">
-                  <option value="alle">Alle Quellen</option>
-                  {quellen.map(qu => <option key={qu} value={qu}>{qu} ({firmen.filter(f => f.quelle === qu).length})</option>)}
+            )}
+            {standorte.length > 0 && (
+              <>
+                <select value={standort} onChange={e => { setStandort(e.target.value); setRegion('alle') }}
+                  className="input !w-auto !py-1 text-xs" aria-label="Betriebsstandort">
+                  <option value="alle">Alle Betriebsstandorte</option>
+                  {standorte.map(s => <option key={s} value={s}>{s} ({firmen.filter(f => f.betriebsstandort === s).length})</option>)}
                 </select>
-              )}
-            </div>
-          )}
+                <select value={region} onChange={e => setRegion(e.target.value)}
+                  className="input !w-auto !py-1 text-xs" aria-label="Region" disabled={regionen.length === 0}>
+                  <option value="alle">Alle Regionen</option>
+                  {regionen.map(r => <option key={r} value={r}>{r} ({firmen.filter(f => f.region === r && (standort === 'alle' || f.betriebsstandort === standort)).length})</option>)}
+                </select>
+                {quellen.length > 0 && (
+                  <select value={quelle} onChange={e => setQuelle(e.target.value)}
+                    className="input !w-auto !py-1 text-xs" aria-label="Quelle">
+                    <option value="alle">Alle Quellen</option>
+                    {quellen.map(qu => <option key={qu} value={qu}>{qu} ({firmen.filter(f => f.quelle === qu).length})</option>)}
+                  </select>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import type { FirmaRow } from '@/lib/crm/types'
 import { alleZeilen } from '@/lib/supabase/alleZeilen'
+import { ladeMandantMitglieder } from '@/lib/aufgaben/mitglieder'
 import FirmenClient from './FirmenClient'
 
 export const metadata: Metadata = { title: 'Firmen – Hohenstein Suite' }
@@ -19,12 +20,13 @@ export default async function FirmenPage({ searchParams }: { searchParams: Promi
   const writeOk  = canWrite(membership.role)
   const supabase = await createSupabaseServerClient()
 
-  const [fRaw, kRaw] = await Promise.all([
+  const [fRaw, kRaw, mitglieder] = await Promise.all([
     alleZeilen(() => (supabase.from('firmen') as any)
-      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, notizen, aktiv, erstellt_am')
+      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, account_manager, notizen, aktiv, erstellt_am')
       .eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
     alleZeilen(() => (supabase.from('kontakte') as any)
       .select('id, firma_id').eq('tenant_id', tenantId).eq('aktiv', true).not('firma_id', 'is', null).order('id')),
+    ladeMandantMitglieder(tenantId),
   ])
 
   const anzahlKontakte: Record<string, number> = {}
@@ -38,7 +40,8 @@ export default async function FirmenPage({ searchParams }: { searchParams: Promi
     email: f.email ?? null, website: f.website ?? null, uid_nummer: f.uid_nummer ?? null,
     zahlungsziel_tage: f.zahlungsziel_tage ?? 14,
     is_lead: !!f.is_lead, ist_kunde: !!f.ist_kunde, ist_lieferant: !!f.ist_lieferant,
-    quelle: f.quelle ?? null, notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
+    quelle: f.quelle ?? null, account_manager: f.account_manager ?? null,
+    notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
   }))
 
   const filterParam = typeof sp.filter === 'string' ? sp.filter : undefined
@@ -53,6 +56,7 @@ export default async function FirmenPage({ searchParams }: { searchParams: Promi
       <FirmenClient
         firmen={firmen}
         anzahlKontakte={anzahlKontakte}
+        mitglieder={mitglieder}
         writeOk={writeOk}
         initialFilter={initialFilter}
         openNeu={sp.neu === '1'}

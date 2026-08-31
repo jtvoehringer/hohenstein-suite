@@ -4,12 +4,12 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Pencil, Trash2, Mail, Phone, MapPin, Globe, Plus, Calendar, ChevronLeft, StickyNote, Users, X, Star, UserPlus,
+  Pencil, Trash2, Mail, Phone, MapPin, Globe, Plus, Calendar, ChevronLeft, StickyNote, Users, X, Star, UserCog,
 } from 'lucide-react'
 import type { FirmaRow } from '@/lib/crm/types'
 import { AKTIVITAET_ARTEN } from '@/lib/crm/types'
 import { fmtDatum } from '@/lib/format'
-import { deleteFirma, addKontaktZuFirma, removeKontaktVonFirma } from '../../actions'
+import { deleteFirma, removeKontaktVonFirma, setzeAccountManager } from '../../actions'
 import Modal from '@/components/crm/Modal'
 import FirmaForm from '@/components/crm/FirmaForm'
 import KontaktForm from '@/components/crm/KontaktForm'
@@ -17,7 +17,6 @@ import AktivitaetForm from '@/components/crm/AktivitaetForm'
 import AktivitaetKarte from '@/components/crm/AktivitaetKarte'
 import PipelineForm from '@/components/crm/PipelineForm'
 import PipelineListe from '@/components/crm/PipelineListe'
-import KundenSuche from '@/components/crm/KundenSuche'
 import { SegmentPill, LeadPill, FlagPill } from '@/components/crm/Pills'
 import { fmtTelefon, telHref, mapsHref, LAENDER, type AktivitaetMitDokumenten, type PipelineKurz } from '@/components/crm/crmUtils'
 
@@ -38,13 +37,14 @@ export type Ansprechpartner = {
 }
 
 export default function FirmaDetailClient({
-  firma, ansprechpartner, aktivitaeten, pipeline, alleKontakte, writeOk,
+  firma, ansprechpartner, aktivitaeten, pipeline, mitglieder, writeOk,
 }: {
   firma: FirmaRow
   ansprechpartner: Ansprechpartner[]
   aktivitaeten: AktivitaetMitDokumenten[]
   pipeline: PipelineKurz[]
-  alleKontakte: { id: string; name: string; sub?: string | null }[]
+  /** Team-Mitglieder des Mandanten für die Account-Manager-Auswahl */
+  mitglieder: { id: string; name: string }[]
   writeOk: boolean
 }) {
   const router = useRouter()
@@ -53,10 +53,8 @@ export default function FirmaDetailClient({
   const [showAktForm, setShowAktForm]     = useState(false)
   const [showPipeForm, setShowPipeForm]   = useState(false)
   const [showNeuKontakt, setShowNeuKontakt] = useState(false)
-  const [showZuordnen, setShowZuordnen]   = useState(false)
-  const [zuordnenId, setZuordnenId]       = useState('')
-  const [zuordnenPos, setZuordnenPos]     = useState('')
-  const [zuordnenHaupt, setZuordnenHaupt] = useState(false)
+  const [showAM, setShowAM]               = useState(false)
+  const [amId, setAmId]                   = useState(firma.account_manager ?? '')
   const [artFilter, setArtFilter]         = useState<string>('alle')
   const [fehler, setFehler]               = useState<string | null>(null)
 
@@ -69,13 +67,12 @@ export default function FirmaDetailClient({
     })
   }
 
-  function handleZuordnen(e: React.FormEvent) {
+  function handleAccountManager(e: React.FormEvent) {
     e.preventDefault()
-    if (!zuordnenId) return
     startTransition(async () => {
-      const res = await addKontaktZuFirma(firma.id, zuordnenId, zuordnenPos || null, zuordnenHaupt)
+      const res = await setzeAccountManager(firma.id, amId || null)
       if (res?.error) { setFehler(res.error); return }
-      setShowZuordnen(false); setZuordnenId(''); setZuordnenPos(''); setZuordnenHaupt(false)
+      setShowAM(false)
       router.refresh()
     })
   }
@@ -103,7 +100,7 @@ export default function FirmaDetailClient({
   const landLabel = LAENDER.find(l => l.code === firma.land)?.label ?? firma.land
   const adresse = [firma.strasse, [firma.plz, firma.ort].filter(Boolean).join(' ')].filter(Boolean)
   const website = firma.website ? (firma.website.startsWith('http') ? firma.website : `https://${firma.website}`) : null
-  const zuordenbar = alleKontakte.filter(k => !ansprechpartner.some(a => a.id === k.id))
+  const amName = firma.account_manager ? (mitglieder.find(m => m.id === firma.account_manager)?.name ?? 'Unbekannt') : null
 
   return (
     <div className="space-y-5">
@@ -148,8 +145,8 @@ export default function FirmaDetailClient({
               <h2 className="text-sm inline-flex items-center gap-1.5"><Users size={15} strokeWidth={1.75} className="text-hs-text-2" />Ansprechpartner ({ansprechpartner.length})</h2>
               {writeOk && (
                 <div className="flex items-center gap-1.5">
-                  <button onClick={() => setShowZuordnen(true)} className="btn-secondary py-1 px-2.5" title="Bestehenden Kontakt zuordnen">
-                    <UserPlus size={14} strokeWidth={1.75} /> Zuordnen
+                  <button onClick={() => { setAmId(firma.account_manager ?? ''); setShowAM(true) }} className="btn-secondary py-1 px-2.5" title="Lead/Kunden einem Account Manager zuordnen">
+                    <UserCog size={14} strokeWidth={1.75} /> {amName ?? 'Account Manager'}
                   </button>
                   <button onClick={() => setShowNeuKontakt(true)} className="btn-primary py-1 px-2.5">
                     <Plus size={14} strokeWidth={2} /> Kontakt
@@ -284,6 +281,14 @@ export default function FirmaDetailClient({
               <p className="text-sm text-hs-text-2">Keine Kontaktdaten hinterlegt.</p>
             )}
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs pt-2 border-t border-hs-line">
+              <dt className="text-hs-text-2">Account Manager</dt>
+              <dd className="text-hs-text">
+                {writeOk ? (
+                  <button onClick={() => { setAmId(firma.account_manager ?? ''); setShowAM(true) }} className="hover:text-hs-blue-700 hover:underline text-left">
+                    {amName ?? 'zuordnen …'}
+                  </button>
+                ) : (amName ?? '–')}
+              </dd>
               {firma.betriebsstandort && (<><dt className="text-hs-text-2">Betriebsstandort</dt><dd className="text-hs-text">{firma.betriebsstandort}</dd></>)}
               {firma.region && (<><dt className="text-hs-text-2">Region</dt><dd className="text-hs-text">{firma.region}</dd></>)}
               {firma.quelle && (<><dt className="text-hs-text-2">Quelle</dt><dd className="text-hs-text">{firma.quelle}</dd></>)}
@@ -325,23 +330,19 @@ export default function FirmaDetailClient({
         />
       </Modal>
 
-      <Modal open={showZuordnen} onClose={() => setShowZuordnen(false)} title="Bestehenden Kontakt zuordnen" subtitle="Für Personen, die mehrere Firmen vertreten">
-        <form onSubmit={handleZuordnen} className="space-y-3">
+      <Modal open={showAM} onClose={() => setShowAM(false)} title="Account Manager zuordnen" subtitle={firma.name}>
+        <form onSubmit={handleAccountManager} className="space-y-3">
           <div>
-            <label className="form-label">Kontakt *</label>
-            <KundenSuche items={zuordenbar.map(k => ({ id: k.id, label: k.name, sub: k.sub }))} value={zuordnenId} onChange={setZuordnenId} placeholder="Name suchen …" />
+            <label className="form-label">Account Manager</label>
+            <select value={amId} onChange={e => setAmId(e.target.value)} className="input">
+              <option value="">– nicht zugeordnet –</option>
+              {mitglieder.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            <p className="text-xs text-hs-text-2 mt-1.5">Das Team-Mitglied, das diesen Lead/Kunden betreut.</p>
           </div>
-          <div>
-            <label className="form-label">Position bei dieser Firma</label>
-            <input value={zuordnenPos} onChange={e => setZuordnenPos(e.target.value)} className="input" placeholder="optional" />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-hs-text-1 cursor-pointer">
-            <input type="checkbox" checked={zuordnenHaupt} onChange={e => setZuordnenHaupt(e.target.checked)} className="accent-hs-teal" />
-            Hauptkontakt
-          </label>
           <div className="flex gap-2 pt-1">
-            <button type="submit" disabled={pending || !zuordnenId} className="btn-primary">Zuordnen</button>
-            <button type="button" onClick={() => setShowZuordnen(false)} className="btn-secondary">Abbrechen</button>
+            <button type="submit" disabled={pending} className="btn-primary">Speichern</button>
+            <button type="button" onClick={() => setShowAM(false)} className="btn-secondary">Abbrechen</button>
           </div>
         </form>
       </Modal>

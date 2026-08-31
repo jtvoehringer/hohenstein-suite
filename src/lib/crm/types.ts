@@ -134,6 +134,8 @@ export type FirmaRow = {
   ist_kunde: boolean
   ist_lieferant: boolean
   quelle: string | null
+  /** Team-Mitglied (auth.users-ID), das den Lead/Kunden betreut – Migration 013 */
+  account_manager: string | null
   notizen: string | null
   aktiv: boolean
   erstellt_am: string

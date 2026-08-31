@@ -205,6 +205,20 @@ export async function deleteFirma(id: string): Promise<ActionResult> {
   } catch (err) { return fehler(err) }
 }
 
+/** Account Manager (Team-Mitglied) einer Firma zuordnen bzw. entfernen (null). */
+export async function setzeAccountManager(firmaId: string, userId: string | null): Promise<ActionResult> {
+  try {
+    const { tenantId } = await requireWrite()
+    const supabase = await createSupabaseServerClient()
+    const { error } = await (supabase.from('firmen') as any)
+      .update({ account_manager: userId })
+      .eq('id', firmaId).eq('tenant_id', tenantId)
+    if (error) return { error: (error as R).message }
+    revalidateCrm()
+    return {}
+  } catch (err) { return fehler(err) }
+}
+
 // ── Ansprechpartner (kontakt_firmen) ──────────────────────────────────────────
 
 export async function addKontaktZuFirma(firmaId: string, kontaktId: string, position: string | null, hauptkontakt: boolean): Promise<ActionResult> {
