@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { RefreshCw, Link2, Unlink, Plus } from 'lucide-react'
 import { fmtDatum } from '@/lib/format'
+import KundenSuche from '@/components/crm/KundenSuche'
 import {
   verknuepfeFirmaAction, entknuepfeFirmaAction, firmaAusMandantAnlegenAction,
   synchronisiereZahlungenAction, type SyncErgebnis,
@@ -64,24 +65,26 @@ function VerknuepfenZelle({ mandantId, unverknuepfteFirmen }: { mandantId: strin
     <div className="flex items-center gap-1.5 flex-wrap">
       {modus === 'waehlen' && unverknuepfteFirmen.length > 0 ? (
         <>
-          <select value={firmaId} onChange={e => setFirmaId(e.target.value)} className="form-input !py-1 !text-[12px] max-w-[160px]">
-            <option value="">Firma wählen…</option>
-            {unverknuepfteFirmen.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
-          <button type="button" disabled={!firmaId || pending} onClick={verknuepfen} className="btn-secondary !px-2 !py-1 text-[11.5px]">
+          <div className="w-56">
+            <KundenSuche
+              items={unverknuepfteFirmen.map(f => ({ id: f.id, label: f.name }))}
+              value={firmaId} onChange={setFirmaId} placeholder="Firma suchen …"
+            />
+          </div>
+          <button type="button" disabled={!firmaId || pending} onClick={verknuepfen} className="btn-secondary !px-2 !py-1 text-[11.5px] shrink-0">
             <Link2 size={12} strokeWidth={1.75} /> Verknüpfen
           </button>
-          <button type="button" onClick={() => setModus('neu')} className="text-[11.5px] text-hs-tertiary hover:text-hs-text underline">oder neu anlegen</button>
+          <button type="button" onClick={() => setModus('neu')} className="text-[11.5px] text-hs-tertiary hover:text-hs-text underline shrink-0">oder neu anlegen</button>
         </>
       ) : (
         <>
           <input value={neuerName} onChange={e => setNeuerName(e.target.value)} placeholder="Name der neuen Firma"
-            className="form-input !py-1 !text-[12px] max-w-[160px]" />
-          <button type="button" disabled={!neuerName.trim() || pending} onClick={verknuepfen} className="btn-secondary !px-2 !py-1 text-[11.5px]">
+            className="form-input !py-2 !text-[13px] w-56" />
+          <button type="button" disabled={!neuerName.trim() || pending} onClick={verknuepfen} className="btn-secondary !px-2 !py-1 text-[11.5px] shrink-0">
             <Plus size={12} strokeWidth={1.75} /> Anlegen
           </button>
           {unverknuepfteFirmen.length > 0 && (
-            <button type="button" onClick={() => setModus('waehlen')} className="text-[11.5px] text-hs-tertiary hover:text-hs-text underline">oder verknüpfen</button>
+            <button type="button" onClick={() => setModus('waehlen')} className="text-[11.5px] text-hs-tertiary hover:text-hs-text underline shrink-0">oder verknüpfen</button>
           )}
         </>
       )}
@@ -112,7 +115,7 @@ export function MandantenTabelle({ rows, unverknuepfteFirmen }: { rows: MandantR
         <thead>
           <tr className="text-left text-[11.5px] text-hs-text-2 border-b border-hs-line">
             <th className="px-1 py-2 font-semibold">Mandant</th>
-            <th className="px-1 py-2 font-semibold">CRM-Firma</th>
+            <th className="px-1 py-2 font-semibold min-w-[280px]">CRM-Firma</th>
             <th className="px-1 py-2 font-semibold">Status</th>
             <th className="px-1 py-2 font-semibold">Plan</th>
             <th className="px-1 py-2 font-semibold">Nächste Abrechnung</th>
