@@ -5,6 +5,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { RotateCcw, Plus, Copy, Check, KeyRound, Lock, Unlock, CalendarPlus, Trash2, X, ExternalLink } from 'lucide-react'
 import { fmtDatum, fmtDatumZeit } from '@/lib/format'
 import {
@@ -16,6 +17,8 @@ export type ZugangRow = {
   id: string; name: string; email: string; rolle: 'winzer' | 'leser'; gueltig_bis: string | null
   status: 'aktiv' | 'gesperrt' | 'abgelaufen' | 'geloescht'; notizen: string | null; erstellt_am: string
   letzte_anmeldung: string | null
+  /** gesetzt, wenn der Zugang zu einer Firma im CRM gehört (Website-Trial) – sonst interner Team-Zugang */
+  firma: { id: string; name: string } | null
 }
 
 const STATUS: Record<ZugangRow['status'], { label: string; cls: string }> = {
@@ -202,6 +205,7 @@ export function Liste({ zugaenge, darfSchreiben, appUrl }: { zugaenge: ZugangRow
         <thead className="table-head">
           <tr>
             <th className="text-left px-5 sm:px-6 py-2">Person</th>
+            <th className="text-left px-3 py-2">Herkunft</th>
             <th className="text-left px-3 py-2">Rolle</th>
             <th className="text-left px-3 py-2">Gültig bis</th>
             <th className="text-left px-3 py-2">Letzte Anmeldung</th>
@@ -220,6 +224,13 @@ export function Liste({ zugaenge, darfSchreiben, appUrl }: { zugaenge: ZugangRow
                   <p className="font-medium text-hs-text">{z.name}</p>
                   <p className="font-mono text-[11.5px] text-hs-text-2">{z.email}</p>
                   {z.notizen && <p className="text-[11.5px] text-hs-tertiary">{z.notizen}</p>}
+                </td>
+                <td className="px-3 py-2.5">
+                  {z.firma ? (
+                    <Link href={`/crm/firmen/${z.firma.id}`} className="pill bg-hs-blue-50 text-hs-blue-700 hover:underline">{z.firma.name}</Link>
+                  ) : (
+                    <span className="pill bg-gray-100 text-gray-600">Team</span>
+                  )}
                 </td>
                 <td className="px-3 py-2.5">
                   {darfSchreiben ? (

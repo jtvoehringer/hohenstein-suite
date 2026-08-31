@@ -37,7 +37,7 @@ export type Ansprechpartner = {
 }
 
 export default function FirmaDetailClient({
-  firma, ansprechpartner, aktivitaeten, pipeline, mitglieder, writeOk,
+  firma, ansprechpartner, aktivitaeten, pipeline, mitglieder, writeOk, trialZugang,
 }: {
   firma: FirmaRow
   ansprechpartner: Ansprechpartner[]
@@ -46,6 +46,8 @@ export default function FirmaDetailClient({
   /** Team-Mitglieder des Mandanten für die Account-Manager-Auswahl */
   mitglieder: { id: string; name: string }[]
   writeOk: boolean
+  /** software:112-Trialzugang dieser Firma (z.B. über hohenstein-partner.at), falls vorhanden */
+  trialZugang: { email: string; rolle: 'winzer' | 'leser'; gueltigBis: string | null; status: string } | null
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -299,6 +301,24 @@ export default function FirmaDetailClient({
               <p className="text-xs text-hs-text-1 whitespace-pre-wrap pt-2 border-t border-hs-line">{firma.notizen}</p>
             )}
           </div>
+
+          {trialZugang && (
+            <div className="bg-white rounded-xl border border-hs-line p-4 space-y-2">
+              <h2 className="text-sm">Trialzugang software:112</h2>
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <dt className="text-hs-text-2">Status</dt>
+                <dd className="text-hs-text">
+                  <span className={`pill ${trialZugang.status === 'aktiv' ? 'bg-hs-ok-bg text-hs-ok-fg' : trialZugang.status === 'gesperrt' ? 'bg-hs-err-bg text-hs-err-fg' : 'bg-hs-warn-bg text-hs-warn-fg'}`}>
+                    {trialZugang.status === 'aktiv' ? 'aktiv' : trialZugang.status === 'gesperrt' ? 'gesperrt' : 'abgelaufen'}
+                  </span>
+                </dd>
+                <dt className="text-hs-text-2">Benutzer</dt><dd className="text-hs-text font-mono truncate">{trialZugang.email}</dd>
+                <dt className="text-hs-text-2">Zugriff</dt><dd className="text-hs-text">{trialZugang.rolle === 'winzer' ? 'Schreibzugriff' : 'Nur-Lesen'}</dd>
+                <dt className="text-hs-text-2">Gültig bis</dt><dd className="text-hs-text">{trialZugang.gueltigBis ? fmtDatum(trialZugang.gueltigBis) : 'unbefristet'}</dd>
+              </dl>
+              <Link href="/demo" className="text-xs font-medium text-hs-blue-700 hover:underline inline-block pt-1">Im Demo-Bereich verwalten →</Link>
+            </div>
+          )}
 
           <div className="bg-white rounded-xl border border-hs-line p-4 space-y-3">
             <div className="flex items-center justify-between">

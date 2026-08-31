@@ -50,6 +50,15 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
       .order('aktualisiert_am', { ascending: false }),
     ladeMandantMitglieder(tenantId),
   ])
+
+  const { data: trialRaw } = await (supabase.from('demo_zugaenge') as any)
+    .select('id, email, s112_rolle, gueltig_bis, status')
+    .eq('firma_id', id).eq('tenant_id', tenantId).neq('status', 'geloescht')
+    .order('erstellt_am', { ascending: false }).limit(1).maybeSingle()
+  const trialZugang = trialRaw ? {
+    email: (trialRaw as R).email as string, rolle: (trialRaw as R).s112_rolle as 'winzer' | 'leser',
+    gueltigBis: (trialRaw as R).gueltig_bis as string | null, status: (trialRaw as R).status as string,
+  } : null
   if (!fRaw) notFound()
 
   const f = fRaw as R
@@ -129,6 +138,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
       pipeline={pipeline}
       mitglieder={mitglieder}
       writeOk={writeOk}
+      trialZugang={trialZugang}
     />
   )
 }

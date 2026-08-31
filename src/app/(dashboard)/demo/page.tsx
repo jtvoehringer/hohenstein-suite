@@ -46,7 +46,7 @@ export default async function DemoPage() {
 
   const [{ data: zugaengeRaw }, { data: letzterReset }] = await Promise.all([
     (supabase.from('demo_zugaenge') as any)
-      .select('id, name, email, s112_user_id, s112_rolle, gueltig_bis, status, notizen, erstellt_am')
+      .select('id, name, email, s112_user_id, s112_rolle, gueltig_bis, status, notizen, erstellt_am, firma_id, firmen:firma_id(id, name)')
       .eq('tenant_id', membership.tenantId).neq('status', 'geloescht').order('erstellt_am', { ascending: false }),
     (supabase.from('demo_resets') as any).select('erstellt_am, profiles:ausgeloest_von(full_name)').eq('tenant_id', membership.tenantId)
       .order('erstellt_am', { ascending: false }).limit(1).maybeSingle(),
@@ -59,6 +59,7 @@ export default async function DemoPage() {
     status: r.status === 'aktiv' && r.gueltig_bis && r.gueltig_bis < heute ? 'abgelaufen' : r.status,
     notizen: r.notizen ?? null, erstellt_am: r.erstellt_am,
     letzte_anmeldung: r.s112_user_id ? (anmeldungen.get(r.s112_user_id) ?? null) : null,
+    firma: r.firmen ? { id: r.firmen.id, name: r.firmen.name } : null,
   }))
   const aktiv = zugaenge.filter(z => z.status === 'aktiv').length
   const lr = letzterReset as R | null
@@ -70,8 +71,9 @@ export default async function DemoPage() {
           <h1 className="text-2xl">Demo-Umgebung software:112</h1>
           <p className="text-[13.5px] text-hs-text-2 mt-1 max-w-[72ch]">
             Der Mandant <span className="font-medium text-hs-text">Weingut Musterhof (Demo)</span> in software:112 mit vollständigen
-            Beispieldaten – nur für das Management-Team zum Vorführen bei Kundenterminen. Die Daten lassen sich jederzeit auf den
-            Ausgangszustand zurücksetzen. Externer Zugriff für Interessenten wird hier nicht vergeben.
+            Beispieldaten – zum Vorführen bei Kundenterminen und als Ziel der automatischen Trialzugänge von hohenstein-partner.at
+            (Badge „Firma" statt „Team" unten). Die Daten werden nachts automatisch zurückgesetzt, lassen sich hier aber jederzeit
+            auch manuell auf den Ausgangszustand bringen.
           </p>
         </div>
         <a href={S112_APP_URL} target="_blank" rel="noreferrer" className="btn-primary">
