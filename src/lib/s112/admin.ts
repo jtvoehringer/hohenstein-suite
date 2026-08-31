@@ -172,3 +172,81 @@ export async function s112LetzteAnmeldungen(userIds: string[]): Promise<Map<stri
   } catch { /* Anzeige bleibt leer */ }
   return map
 }
+
+// ── Echte Mandanten + Stripe-Zahlungs-Sync ─────────────────────────────────────
+// Rückmeldung 31.8.2026 ("Zahlungstracking in die Hohenstein Suite übernehmen,
+// bei 200 Mandanten gehen wir sonst bei Abstimmungsarbeiten unter"): erweitert
+// die bisher demo-only Anbindung um Lesezugriff auf ALLE echten software:112-
+// Mandanten (Stripe-Status) sowie das Zahlungs-Log aus Migration 183 dort.
+// Schreibend wird ausschließlich hs_verbucht_am gesetzt (s112MarkiereVerbucht) -
+// alles andere in software:112 bleibt unangetastet.
+
+export type S112Mandant = {
+  id: string
+  name: string
+  aktiv: boolean
+  erstellt_am: string
+  stripe_customer_id: string | null
+  stripe_status: string | null
+  stripe_plan: string | null
+  stripe_current_period_end: string | null
+}
+
+/** Alle echten software:112-Mandanten mit Stripe-Status (für /software112-Übersicht) */
+export async function s112AlleMandanten(): Promise<S112Mandant[]> {
+  if (!s112Konfiguriert()) return []
+  const { data, error } = await (s112Admin().from('tenants') as any)
+    .select('id, name, active, created_at, stripe_customer_id, stripe_status, stripe_plan, stripe_current_period_end')
+    .order('created_at')
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as R[]).map(t => ({
+    id:                         t.id as string,
+    name:                       t.name as string,
+    aktiv:                      !!t.active,
+    erstellt_am:                t.created_at as string,
+    stripe_customer_id:         (t.stripe_customer_id as string | null) ?? null,
+    stripe_status:              (t.stripe_status as string | null) ?? null,
+    stripe_plan:                (t.stripe_plan as string | null) ?? null,
+    stripe_current_period_end:  (t.stripe_current_period_end as string | null) ?? null,
+  }))
+}
+
+export type S112ZahlungLogEintrag = {
+  id: string
+  tenant_id: string
+  stripe_invoice_id: string
+  betrag_brutto: number
+  waehrung: string
+  bezahlt_am: string
+  periode_start: string | null
+  periode_ende: string | null
+}
+
+/** Noch nicht in der Hohenstein Suite verbuchte Zahlungen (stripe_zahlungen_log, hs_verbucht_am IS NULL) */
+export async function s112NeueZahlungen(): Promise<S112ZahlungLogEintrag[]> {
+  if (!s112Konfiguriert()) return []
+  const { data, error } = await (s112Admin().from('stripe_zahlungen_log') as any)
+    .select('id, tenant_id, stripe_invoice_id, betrag_brutto, waehrung, bezahlt_am, periode_start, periode_ende')
+    .is('hs_verbucht_am', null)
+    .order('bezahlt_am')
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as R[]).map(z => ({
+    id:                z.id as string,
+    tenant_id:         z.tenant_id as string,
+    stripe_invoice_id: z.stripe_invoice_id as string,
+    betrag_brutto:     Number(z.betrag_brutto ?? 0),
+    waehrung:          (z.waehrung as string) ?? 'eur',
+    bezahlt_am:        z.bezahlt_am as string,
+    periode_start:     (z.periode_start as string | null) ?? null,
+    periode_ende:      (z.periode_ende as string | null) ?? null,
+  }))
+}
+
+/** Log-Zeilen als in der Hohenstein Suite verbucht markieren (nach erfolgreicher ea_transaktionen-Buchung) */
+export async function s112MarkiereVerbucht(logIds: string[]): Promise<void> {
+  if (logIds.length === 0 || !s112Konfiguriert()) return
+  const { error } = await (s112Admin().from('stripe_zahlungen_log') as any)
+    .update({ hs_verbucht_am: new Date().toISOString() })
+    .in('id', logIds)
+  if (error) throw new Error(error.message)
+}
