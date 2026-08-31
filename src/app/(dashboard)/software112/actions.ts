@@ -41,11 +41,17 @@ export async function verknuepfeFirmaAction(s112TenantId: string, firmaId: strin
     const { data: firma } = await (supabase.from('firmen') as R)
       .select('id').eq('id', firmaId).eq('tenant_id', tenantId).maybeSingle()
     if (!firma) return { ok: false, fehler: 'Firma nicht gefunden.' }
-    const { error } = await (supabase.from('firmen') as R)
+    // .select() erzwingen: ohne Rückgabe meldet Supabase ein durch RLS
+    // stillschweigend auf 0 Zeilen blockiertes Update NICHT als Fehler.
+    const { data: aktualisiert, error } = await (supabase.from('firmen') as R)
       .update({ s112_tenant_id: s112TenantId }).eq('id', firmaId).eq('tenant_id', tenantId)
+      .select('id')
     if (error) {
       if ((error as R).code === '23505') return { ok: false, fehler: 'Dieser Mandant ist bereits mit einer anderen Firma verknüpft.' }
       return { ok: false, fehler: (error as R).message }
+    }
+    if (!aktualisiert || (aktualisiert as R[]).length === 0) {
+      return { ok: false, fehler: 'Verknüpfung wurde nicht gespeichert (keine Berechtigung oder Firma nicht mehr vorhanden).' }
     }
     neuSetzen()
     return { ok: true }
@@ -56,9 +62,13 @@ export async function verknuepfeFirmaAction(s112TenantId: string, firmaId: strin
 export async function entknuepfeFirmaAction(firmaId: string): Promise<Ergebnis> {
   try {
     const { supabase, tenantId } = await ctx()
-    const { error } = await (supabase.from('firmen') as R)
+    const { data: aktualisiert, error } = await (supabase.from('firmen') as R)
       .update({ s112_tenant_id: null }).eq('id', firmaId).eq('tenant_id', tenantId)
+      .select('id')
     if (error) return { ok: false, fehler: (error as R).message }
+    if (!aktualisiert || (aktualisiert as R[]).length === 0) {
+      return { ok: false, fehler: 'Änderung wurde nicht gespeichert (keine Berechtigung oder Firma nicht mehr vorhanden).' }
+    }
     neuSetzen()
     return { ok: true }
   } catch (e) { return fehler(e) }
