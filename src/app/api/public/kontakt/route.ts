@@ -73,7 +73,9 @@ export async function POST(req: NextRequest) {
         firmaId = treffer.id
         const update: R = { notizen: [treffer.notizen, notizZeile].filter(Boolean).join('\n') }
         if (!treffer.telefon && telefon) update.telefon = telefon
-        await (admin.from('firmen') as any).update(update).eq('id', firmaId)
+        const { data: firmaAktualisiert, error: firmaUpdateFehler } = await (admin.from('firmen') as any).update(update).eq('id', firmaId).select('id')
+        if (firmaUpdateFehler) throw new Error('Firma-Update: ' + firmaUpdateFehler.message)
+        if (!firmaAktualisiert || (firmaAktualisiert as R[]).length === 0) throw new Error('Firma-Update: keine Zeile aktualisiert (RLS?)')
       } else {
         const { data: neu, error } = await (admin.from('firmen') as any).insert({
           tenant_id: TENANT_ID, name: firmaName, segment: 'weinbau', email, telefon,
@@ -86,15 +88,21 @@ export async function POST(req: NextRequest) {
 
     const [vorname, ...rest] = name.split(' ')
     const nachname = rest.join(' ') || vorname
-    const { data: bestKontakt } = await (admin.from('kontakte') as any).select('id, notizen').eq('tenant_id', TENANT_ID).eq('email', email).limit(1).maybeSingle()
+    const { data: bestKontakt, error: sucheFehler } = await (admin.from('kontakte') as any).select('id, notizen').eq('tenant_id', TENANT_ID).eq('email', email).limit(1).maybeSingle()
+    if (sucheFehler) throw new Error('Kontaktsuche: ' + sucheFehler.message)
     if ((bestKontakt as R | null)?.id) {
       const neueNotiz = [(bestKontakt as R).notizen, notizZeile].filter(Boolean).join('\n')
-      await (admin.from('kontakte') as any).update({ notizen: neueNotiz, firma_id: firmaId ?? undefined }).eq('id', (bestKontakt as R).id)
+      const { data: aktualisiert, error } = await (admin.from('kontakte') as any)
+        .update({ notizen: neueNotiz, firma_id: firmaId ?? undefined }).eq('id', (bestKontakt as R).id).select('id')
+      if (error) throw new Error('Kontakt-Update: ' + error.message)
+      if (!aktualisiert || (aktualisiert as R[]).length === 0) throw new Error('Kontakt-Update: keine Zeile aktualisiert (RLS?)')
     } else {
-      await (admin.from('kontakte') as any).insert({
+      const { data: neuerKontakt, error } = await (admin.from('kontakte') as any).insert({
         tenant_id: TENANT_ID, vorname: rest.length ? vorname : null, nachname, segment: 'weinbau',
         firma_id: firmaId, email, telefon, is_lead: true, notizen: `Quelle: Website-Kontakt.\n${notizZeile}`,
-      })
+      }).select('id')
+      if (error) throw new Error('Kontakt-Insert: ' + error.message)
+      if (!neuerKontakt || (neuerKontakt as R[]).length === 0) throw new Error('Kontakt-Insert: keine Zeile eingefügt (RLS?)')
     }
 
     await protokolliere({ email, firma_name: firmaName, firma_id: firmaId, ergebnis: 'erfolgreich' })

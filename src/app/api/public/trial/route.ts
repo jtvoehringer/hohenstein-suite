@@ -103,7 +103,9 @@ export async function POST(req: NextRequest) {
       const update: R = { notizen: [treffer.notizen, notizZeile].filter(Boolean).join('\n') }
       if (!treffer.telefon && telefon) update.telefon = telefon
       if (!treffer.quelle) update.quelle = 'Website-Trialanfrage'  // ursprüngliche Quelle (z.B. ÖWM) nicht überschreiben
-      await (admin.from('firmen') as any).update(update).eq('id', firmaId)
+      const { data: firmaAktualisiert, error: firmaUpdateFehler } = await (admin.from('firmen') as any).update(update).eq('id', firmaId).select('id')
+      if (firmaUpdateFehler) throw new Error('Firma-Update fehlgeschlagen: ' + firmaUpdateFehler.message)
+      if (!firmaAktualisiert || (firmaAktualisiert as R[]).length === 0) throw new Error('Firma-Update: keine Zeile aktualisiert (RLS?)')
       const amName = await accountManagerName(admin, treffer.account_manager)
       bestandshinweis = `Bereits im CRM als „${treffer.name}"${treffer.ist_kunde ? ' (Kunde)' : ''}${amName ? `, Account Manager: ${amName}` : treffer.account_manager ? '' : ', kein Account Manager zugeordnet'}.`
     } else {
@@ -119,13 +121,16 @@ export async function POST(req: NextRequest) {
     // Ansprechpartner (Kontakt) verknüpfen, falls noch nicht vorhanden
     const [vorname, ...rest] = name.split(' ')
     const nachname = rest.join(' ') || vorname
-    const { data: bestKontakt } = await (admin.from('kontakte') as any)
+    const { data: bestKontakt, error: kontaktSucheFehler } = await (admin.from('kontakte') as any)
       .select('id').eq('tenant_id', TENANT_ID).eq('email', email).limit(1).maybeSingle()
+    if (kontaktSucheFehler) throw new Error('Kontaktsuche fehlgeschlagen: ' + kontaktSucheFehler.message)
     if (!(bestKontakt as R | null)?.id) {
-      await (admin.from('kontakte') as any).insert({
+      const { data: neuerKontakt, error: kontaktFehler } = await (admin.from('kontakte') as any).insert({
         tenant_id: TENANT_ID, vorname: rest.length ? vorname : null, nachname, segment: 'weinbau',
         firma_id: firmaId, email, telefon, is_lead: true, notizen: 'Ansprechpartner der Trialanfrage über hohenstein-partner.at',
-      })
+      }).select('id')
+      if (kontaktFehler) throw new Error('Kontakt anlegen fehlgeschlagen: ' + kontaktFehler.message)
+      if (!neuerKontakt || (neuerKontakt as R[]).length === 0) throw new Error('Kontakt anlegen: keine Zeile eingefügt (RLS?)')
     }
 
     // ── software:112-Benutzer im Demo-Mandanten anlegen (bestehende Funktion) ─
@@ -142,7 +147,9 @@ export async function POST(req: NextRequest) {
     let zugangId: string
     if ((bestZugang as R | null)?.id) {
       zugangId = (bestZugang as R).id
-      await (admin.from('demo_zugaenge') as any).update(zugangWerte).eq('id', zugangId)
+      const { data: zugangAktualisiert, error: zugangFehler } = await (admin.from('demo_zugaenge') as any).update(zugangWerte).eq('id', zugangId).select('id')
+      if (zugangFehler) throw new Error('Trialzugang aktualisieren fehlgeschlagen: ' + zugangFehler.message)
+      if (!zugangAktualisiert || (zugangAktualisiert as R[]).length === 0) throw new Error('Trialzugang-Update: keine Zeile aktualisiert (RLS?)')
     } else {
       const { data: neuZ, error } = await (admin.from('demo_zugaenge') as any).insert(zugangWerte).select('id').single()
       if (error) throw new Error('Trialzugang anlegen fehlgeschlagen: ' + error.message)
