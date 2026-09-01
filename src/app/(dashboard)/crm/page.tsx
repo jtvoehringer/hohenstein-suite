@@ -26,7 +26,7 @@ export default async function CRMKalenderPage({ searchParams }: { searchParams: 
 
   const [{ data: aRaw }, kRaw, fRaw] = await Promise.all([
     (supabase.from('aktivitaeten') as any)
-      .select('id, kontakt_id, firma_id, art, betreff, beschreibung, datum, bis_datum, ganztags, uhrzeit_von, uhrzeit_bis, erledigt, ist_privat, erstellt_von, kontakte:kontakt_id(vorname, nachname), firmen:firma_id(name)')
+      .select('id, kontakt_id, firma_id, art, betreff, beschreibung, datum, bis_datum, ganztags, uhrzeit_von, uhrzeit_bis, erledigt, ist_privat, erstellt_von, serie_id, serie_regel, kontakte:kontakt_id(vorname, nachname), firmen:firma_id(name)')
       .eq('tenant_id', tenantId)
       .not('art', 'in', '(notiz,email)')
       .order('datum', { ascending: true }).order('uhrzeit_von', { ascending: true, nullsFirst: true }),
@@ -64,6 +64,8 @@ export default async function CRMKalenderPage({ searchParams }: { searchParams: 
       ueberfaellig: a.art === 'aufgabe' && !a.erledigt && (a.datum as string) < heute,
       ist_privat:   !!a.ist_privat,
       erstellt_von: (a.erstellt_von as string | null) ?? null,
+      serie_id:     (a.serie_id as string | null) ?? null,
+      serie_regel:  (a.serie_regel as string | null) ?? null,
       kontakt_id:   (a.kontakt_id as string | null) ?? null,
       firma_id:     (a.firma_id as string | null) ?? null,
       kontaktName:  a.kontakte ? kName(a.kontakte) : null,

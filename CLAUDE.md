@@ -15,23 +15,13 @@
 - Demo-Umgebung = Mandant „Weingut Musterhof (Demo)" `33333333-3333-4333-8333-333333333333` im software:112-Projekt
   (`zwcsgnemijkpyxrqykul`); Zugriff über `src/lib/s112/admin.ts` (Service-Role; nur dieser Mandant darf verändert werden,
   dort liegt auch der produktive „Sandbox"-Mandant!). SQL: `supabase/s112/demo_musterhof.sql`. Vorführ-Zugänge (nur Team): Tabelle `demo_zugaenge` (gueltig_bis NULL = unbefristet).
-- Demo-Bereich (`/demo`) ist adminOnly (Team-Vorführ-Zugänge, unbefristet). Seit 31.08.2026 zusätzlich: öffentlicher,
-  unauthentifizierter Endpunkt `POST /api/public/trial` (Migration 014) für hohenstein-partner.at – Website-Besucher bekommen
-  automatisch (ohne Freigabe) einen befristeten (`TRIAL_DAUER_TAGE`, Standard 14 Tage) **Lesezugriff** auf denselben
-  Demo-Mandanten, plus einen Lead in `firmen` (`quelle='Website-Trialanfrage'`). Nutzt bestehende Funktionen 1:1
-  (`s112DemoUserAnlegen`, `demo_zugaenge`, Ablauf-Cron `/api/cron/demo-zugaenge`); neu ist nur das Rate-Limit-/Audit-Log
-  `trial_anfragen` und ein nächtlicher Reset-Cron `/api/cron/demo-reset` (Missbrauchsschutz, da öffentlich erreichbar).
-  Zugangsdaten- und interne Benachrichtigungsmail laufen über einen eigenen Brevo-SMTP-Versand (`src/lib/email/transaktional.ts`,
-  env `BREVO_SMTP_*`/`TRIAL_*` – siehe `.env.local.example`), unabhängig von den IMAP/SMTP-Postfachverbindungen der Nutzer.
-  CORS für die Website-Domain über `TRIAL_ALLOWED_ORIGINS`. Daneben `POST /api/public/kontakt` fürs allgemeine
-  Kontaktformular der Website (ohne Trial-Provisionierung, landet ebenfalls als Lead in `firmen`/`kontakte`,
-  `quelle='Website-Kontakt'`). Beide Endpunkte nutzen `src/lib/public/firmaMatch.ts` als Dublettenschutz
-  (E-Mail/Name/Domain) gegen die bereits ~5.000 bestehenden Firmen aus den ÖWM-Importen – bei Treffer wird an
-  die bestehende Firma angedockt statt eine Dublette anzulegen, die ursprüngliche `quelle` (z.B.
-  ÖWM-Betriebssuche) bleibt dabei erhalten. Design: ausschließlich HC CD; ICP-CD nur für den
-  „powered by ICP Solutions"-Hinweis.
+- Demo-Bereich ist adminOnly (nur Management-Team, zum Vorführen bei Kundenterminen); KEINE Zugänge für Interessenten –
+  das läuft später über die Hohenstein-Homepage. Design: ausschließlich HC CD; ICP-CD nur für den „powered by ICP Solutions"-Hinweis.
 - Fakturierung: `belege`/`beleg_positionen`/`beleg_zahlungen`, Nummern über RPC `get_next_belegnummer`;
   Zahlung bucht automatisch eine E&A-Einnahme (`import_quelle='rechnung'`). Nummernkreis/Standardtexte in /einstellungen (Karte „Fakturierung").
+- Serientermine (Migration 014): Termine mit Wiederholung (täglich/wöchentlich/14-tägig/monatlich, Enddatum Pflicht, max. 2 Jahre)
+  werden beim Anlegen als materialisierte Einzeltermine mit gemeinsamer `serie_id` + `serie_regel` erzeugt (createAktivitaet);
+  Bearbeiten/Verschieben wirkt je Instanz, Löschen bietet „diesen / ab diesem / ganze Serie" (deleteAktivitaetSerie).
 - Verbindlichkeiten: `eingangsrechnungen` (/rechnungen/verbindlichkeiten); Bezahlen bucht E&A-Ausgabe (`import_quelle='eingangsrechnung'`),
   Zahlung zurücknehmen löscht sie (nur wenn nicht gesperrt). Fällige Eingangs-/überfällige Ausgangsrechnungen erscheinen in der Hinweis-Glocke.
 

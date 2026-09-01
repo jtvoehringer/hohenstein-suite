@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, Plus, Lock, Pencil, Trash2, Check, X, Calendar, ArrowRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Lock, Pencil, Trash2, Check, X, Calendar, ArrowRight, Repeat } from 'lucide-react'
 import { AKTIVITAET_ARTEN, aktivitaetLabel } from '@/lib/crm/types'
 import { MONATE, MONATE_KURZ, fmtDatum } from '@/lib/format'
-import { createAktivitaet, updateAktivitaet, moveAktivitaet, toggleAktivitaetErledigt, deleteAktivitaet } from './actions'
+import { createAktivitaet, updateAktivitaet, moveAktivitaet, toggleAktivitaetErledigt, deleteAktivitaet, deleteAktivitaetSerie } from './actions'
 import KundenSuche from '@/components/crm/KundenSuche'
 import Modal from '@/components/crm/Modal'
+import WiederholungFelder from '@/components/crm/WiederholungFelder'
 import { ART_FARBEN } from '@/components/crm/Pills'
 
 // ── Typen ─────────────────────────────────────────────────────────────────────
@@ -27,6 +28,8 @@ export type KalenderEintrag = {
   ueberfaellig: boolean
   ist_privat: boolean
   erstellt_von: string | null
+  serie_id: string | null
+  serie_regel: string | null
   kontakt_id: string | null
   firma_id: string | null
   kontaktName: string | null
@@ -85,6 +88,7 @@ function EintragChip({ e, compact = false, onOpen }: { e: KalenderEintrag; compa
       className={`border rounded truncate leading-snug cursor-pointer hover:opacity-80 transition-opacity ${compact ? 'text-[10px] px-1 py-px' : 'text-xs px-2 py-1'} ${chipFarbe(e)}`}>
       {von && <span className="font-semibold mr-1 tabular-nums">{compact ? von : bis ? `${von}–${bis}` : von}</span>}
       {e.ist_privat && <Lock size={9} strokeWidth={2} className="inline mr-0.5 -mt-px" />}
+      {e.serie_id && <Repeat size={9} strokeWidth={2.25} className="inline mr-0.5 -mt-px" aria-label="Serientermin" />}
       <span className="font-medium">{e.titel}</span>
       {!compact && (e.kontaktName || e.firmaName) && (
         <span className="block text-[10px] opacity-70 truncate">{e.kontaktName ?? e.firmaName}</span>
@@ -652,6 +656,7 @@ export default function CRMUebersichtClient({
                     : wochentagLang(viewAkt.datum)}
                   {!viewAkt.ganztags && viewAkt.uhrzeit_von && <span className="ml-2 font-mono tabular-nums">{fmtT(viewAkt.uhrzeit_von)}{viewAkt.uhrzeit_bis ? `–${fmtT(viewAkt.uhrzeit_bis)}` : ''}</span>}
                 </dd></div>
+              {viewAkt.serie_id && <div className="flex gap-2"><dt className="text-hs-text-2 w-24 flex-shrink-0">Serie</dt><dd className="text-hs-text inline-flex items-center gap-1.5"><Repeat size={12} strokeWidth={2} className="text-hs-text-2" />{viewAkt.serie_regel ?? 'Serientermin'}</dd></div>}
               {viewAkt.kontaktName && <div className="flex gap-2"><dt className="text-hs-text-2 w-24 flex-shrink-0">Kontakt</dt><dd>{viewAkt.kontakt_id ? <Link href={`/crm/kontakte/${viewAkt.kontakt_id}`} className="text-hs-blue-700 hover:underline">{viewAkt.kontaktName}</Link> : viewAkt.kontaktName}</dd></div>}
               {viewAkt.firmaName && <div className="flex gap-2"><dt className="text-hs-text-2 w-24 flex-shrink-0">Firma</dt><dd>{viewAkt.firma_id ? <Link href={`/crm/firmen/${viewAkt.firma_id}`} className="text-hs-blue-700 hover:underline">{viewAkt.firmaName}</Link> : viewAkt.firmaName}</dd></div>}
               <div className="flex gap-2"><dt className="text-hs-text-2 w-24 flex-shrink-0">Erstellt von</dt><dd className="text-hs-text">{viewAkt.erstellt_von && userProfiles[viewAkt.erstellt_von] ? userProfiles[viewAkt.erstellt_von] : <span className="text-hs-tertiary">–</span>}</dd></div>
@@ -670,10 +675,27 @@ export default function CRMUebersichtClient({
                     onClick={() => startTransition(async () => { await toggleAktivitaetErledigt(viewAkt.id, !viewAkt.erledigt); closeView(); router.refresh() })}>
                     <Check size={14} strokeWidth={2} /> {viewAkt.erledigt ? 'Als offen markieren' : 'Erledigt'}
                   </button>
-                  <button disabled={pending} className="btn-danger"
-                    onClick={() => { if (!confirm(`„${viewAkt.titel}" wirklich löschen?`)) return; startTransition(async () => { const r = await deleteAktivitaet(viewAkt.id); if (r?.error) { setFehler(r.error); return } closeView(); router.refresh() }) }}>
-                    <Trash2 size={14} strokeWidth={1.75} /> Löschen
-                  </button>
+                  {!viewAkt.serie_id ? (
+                    <button disabled={pending} className="btn-danger"
+                      onClick={() => { if (!confirm(`„${viewAkt.titel}" wirklich löschen?`)) return; startTransition(async () => { const r = await deleteAktivitaet(viewAkt.id); if (r?.error) { setFehler(r.error); return } closeView(); router.refresh() }) }}>
+                      <Trash2 size={14} strokeWidth={1.75} /> Löschen
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1">
+                      <button disabled={pending} className="btn-danger" title="Nur diesen Termin löschen"
+                        onClick={() => { if (!confirm(`Nur diesen Termin am ${fmtDatum(viewAkt.datum)} löschen?`)) return; startTransition(async () => { const r = await deleteAktivitaet(viewAkt.id); if (r?.error) { setFehler(r.error); return } closeView(); router.refresh() }) }}>
+                        <Trash2 size={14} strokeWidth={1.75} /> Diesen Termin
+                      </button>
+                      <button disabled={pending} className="btn-secondary" title="Diesen und alle folgenden Termine der Serie löschen"
+                        onClick={() => { if (!confirm(`„${viewAkt.titel}": diesen und alle folgenden Serientermine löschen?`)) return; startTransition(async () => { const r = await deleteAktivitaetSerie(viewAkt.id, true); if (r?.error) { setFehler(r.error); return } closeView(); router.refresh() }) }}>
+                        Ab diesem
+                      </button>
+                      <button disabled={pending} className="btn-secondary" title="Alle Termine dieser Serie löschen"
+                        onClick={() => { if (!confirm(`„${viewAkt.titel}": die GESAMTE Serie (alle Termine) löschen?`)) return; startTransition(async () => { const r = await deleteAktivitaetSerie(viewAkt.id, false); if (r?.error) { setFehler(r.error); return } closeView(); router.refresh() }) }}>
+                        Ganze Serie
+                      </button>
+                    </span>
+                  )}
                 </>
               )}
               {(viewAkt.kontakt_id || viewAkt.firma_id) && (
@@ -686,6 +708,11 @@ export default function CRMUebersichtClient({
         )}
         {viewAkt && editMode && (
           <form onSubmit={handleSaveEdit} className="space-y-3">
+            {viewAkt.serie_id && (
+              <p className="text-xs text-hs-text-2 bg-hs-bg rounded-lg px-3 py-2 inline-flex items-center gap-1.5">
+                <Repeat size={12} strokeWidth={2} /> Serientermin ({viewAkt.serie_regel ?? 'Serie'}) – Änderungen gelten nur für diesen einen Termin.
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="form-label">Art</label>
@@ -761,6 +788,7 @@ export default function CRMUebersichtClient({
                 </div>
               )}
             </div>
+            <WiederholungFelder startDatum={neu.datum} />
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="form-label">Kontakt</label>

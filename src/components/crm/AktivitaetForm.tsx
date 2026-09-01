@@ -6,6 +6,7 @@ import { Lock } from 'lucide-react'
 import { AKTIVITAET_ARTEN } from '@/lib/crm/types'
 import { heuteIso } from '@/lib/format'
 import { createAktivitaet, updateAktivitaet } from '@/app/(dashboard)/crm/actions'
+import WiederholungFelder from './WiederholungFelder'
 import type { AktivitaetMitDokumenten } from './crmUtils'
 
 /**
@@ -97,6 +98,7 @@ export default function AktivitaetForm({
           </div>
         )}
       </div>
+      {!initial && <WiederholungFelder startDatum={datum} />}
       <div className="flex items-center gap-4 flex-wrap text-sm">
         <label className="flex items-center gap-1.5 cursor-pointer text-hs-text-1">
           <input type="checkbox" name="erledigt_check" key={String(erledigtDefault)} defaultChecked={erledigtDefault} className="accent-hs-teal" />
