@@ -61,7 +61,20 @@ export default function NachrichtenClient({
   const [detailLaden, setDetailLaden] = useState<number | null>(null)
   const [compose, setCompose]   = useState<{ modus: ComposerModus; original: NachrichtDetail | null } | null>(null)
   const [ordnerOffen, setOrdnerOffen] = useState(false)
+  /** ungelesene Nachrichten im Posteingang der jeweils anderen Mailbox (null = unbekannt) */
+  const [andereUngelesen, setAndereUngelesen] = useState<number | null>(null)
   const gen = useRef(0)
+
+  const ladeAndereUngelesen = useCallback(async () => {
+    if (!andereAdresse) return
+    try {
+      const res = await fetch(`/api/nachrichten/folders?konto=${aktivesKonto === 'gemeinsam' ? 'privat' : 'gemeinsam'}`)
+      const d = await res.json()
+      if (!res.ok || d.fehler) return
+      const inbox = (d.folders as OrdnerInfo[] | undefined)?.find(f => f.specialUse === '\\Inbox')
+      setAndereUngelesen(inbox?.unread ?? 0)
+    } catch { /* Hinweis ist optional – Fehler still ignorieren */ }
+  }, [andereAdresse, aktivesKonto])
 
   const ladeFolders = useCallback(async () => {
     try {
@@ -86,9 +99,10 @@ export default function NachrichtenClient({
   }, [])
 
   useEffect(() => { ladeFolders() }, [ladeFolders])
+  useEffect(() => { ladeAndereUngelesen() }, [ladeAndereUngelesen])
   useEffect(() => { ladeListe(folder, page) }, [folder, page, ladeListe])
 
-  function aktualisieren() { ladeFolders(); ladeListe(folder, page) }
+  function aktualisieren() { ladeFolders(); ladeListe(folder, page); ladeAndereUngelesen() }
 
   function ordnerWaehlen(path: string) {
     setFolder(path); setPage(0); setSelected(null); setCompose(null); setOrdnerOffen(false)
@@ -135,9 +149,13 @@ export default function NachrichtenClient({
             </span>
             {andereAdresse && (
               <button type="button" onClick={() => mailboxWechseln(aktivesKonto === 'gemeinsam' ? 'privat' : 'gemeinsam')}
-                className="text-hs-blue-700 hover:underline text-[12.5px]"
-                title="Zwischen persönlichem Postfach und gemeinsamer Mailbox wechseln">
+                className="text-hs-blue-700 hover:underline text-[12.5px] inline-flex items-center gap-1.5"
+                title={andereUngelesen ? `${andereUngelesen} ungelesene Nachricht(en) in ${andereAdresse}` : 'Zwischen persönlichem Postfach und gemeinsamer Mailbox wechseln'}>
                 → {andereAdresse}
+                {andereUngelesen != null && andereUngelesen > 0 && (
+                  <span className="pill bg-hs-blue-700 text-white">{andereUngelesen} neu</span>
+                )}
+                {andereUngelesen === 0 && <span className="text-hs-tertiary text-[11px]">(nichts Neues)</span>}
               </button>
             )}
           </p>

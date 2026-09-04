@@ -41,5 +41,7 @@
 - Details zur Portierung/Schema: `PORTIERUNG.md`, Migrationen in `supabase/migrations/`.
 
 ## Arbeitsweise
-- Claude schreibt Code + SQL; Jörgen führt SQL im Supabase SQL Editor aus und pusht (`push.ps1`) – Vercel deployt automatisch.
+- Claude schreibt Code + SQL und spielt Migrationen direkt über den Supabase-MCP ein; geänderte Dateien liefert Claude direkt
+  in den Projektordner. Jörgen committet und pusht dann wie in seinen anderen Projekten:
+  `git add -A` → `git commit -m "…"` → `git push -u origin main` – Vercel deployt automatisch. (Kein push.ps1 mehr.)
 - Umsetzungsentscheidungen direkt umsetzen; Rückmeldung erfolgt auf der Live-Version.

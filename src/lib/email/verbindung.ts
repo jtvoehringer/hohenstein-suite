@@ -65,9 +65,9 @@ export async function ladeVerbindungRoh(konto?: 'privat' | 'gemeinsam'): Promise
   return { row: (data as R | null) ?? null, tenantId: membership.tenantId, userId: user.id, role: membership.role, konto: aktiv, supabase }
 }
 
-/** Verbindung inkl. entschlüsselter Passwörter – für Route-Handler (aktive Mailbox laut Cookie) */
-export async function ladeVerbindung(): Promise<VerbindungErgebnis> {
-  const ctx = await ladeVerbindungRoh()
+/** Verbindung inkl. entschlüsselter Passwörter – für Route-Handler (Default: aktive Mailbox laut Cookie) */
+export async function ladeVerbindung(konto?: 'privat' | 'gemeinsam'): Promise<VerbindungErgebnis> {
+  const ctx = await ladeVerbindungRoh(konto)
   if (!ctx) return { ok: false, status: 401, fehler: 'Nicht angemeldet oder kein aktiver Mandant.' }
   const r = ctx.row
   if (!r) {
