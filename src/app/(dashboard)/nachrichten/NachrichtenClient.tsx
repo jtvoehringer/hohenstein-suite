@@ -2,13 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { PenSquare, RefreshCw, Settings, ChevronLeft, ChevronRight, Paperclip, Inbox, Send, FileText, Trash2, AlertOctagon, Archive, Folder, Loader2, Mail, X, CornerUpLeft } from 'lucide-react'
+import { PenSquare, RefreshCw, Settings, ChevronLeft, ChevronRight, Paperclip, Inbox, Send, FileText, Trash2, AlertOctagon, Archive, Folder, Loader2, Mail, X, CornerUpLeft, Users, User } from 'lucide-react'
 import type { OrdnerInfo, NachrichtKurz, NachrichtDetail, ListeAntwort } from '@/lib/email/types'
 import NachrichtAnsicht from './NachrichtAnsicht'
 import Composer, { type ComposerModus } from './Composer'
 import { fmtListenDatum } from './utils'
 
 const PAGE_SIZE = 50
+
+/** Aktive Mailbox wechseln: Cookie setzen (liest der Server in ladeVerbindung) und neu laden */
+function mailboxWechseln(ziel: 'privat' | 'gemeinsam') {
+  document.cookie = `hs_mail_konto=${ziel === 'gemeinsam' ? 'gemeinsam' : ''}; path=/; max-age=31536000; samesite=lax`
+  window.location.reload()
+}
+
+export function MailboxWechselButton({ ziel, label }: { ziel: 'privat' | 'gemeinsam'; label: string }) {
+  return (
+    <button type="button" onClick={() => mailboxWechseln(ziel)} className="btn-secondary">
+      {ziel === 'gemeinsam' ? <Users size={16} strokeWidth={1.75} /> : <User size={16} strokeWidth={1.75} />} {label}
+    </button>
+  )
+}
 
 function OrdnerIcon({ su }: { su: string | null }) {
   const p = { size: 15, strokeWidth: 1.75 }
@@ -24,12 +38,16 @@ function OrdnerIcon({ su }: { su: string | null }) {
 }
 
 export default function NachrichtenClient({
-  eigeneAdresse, signatur, darfSchreiben, smtpBereit,
+  eigeneAdresse, signatur, darfSchreiben, smtpBereit, aktivesKonto = 'privat', andereAdresse = null,
 }: {
   eigeneAdresse: string
   signatur: string
   darfSchreiben: boolean
   smtpBereit: boolean
+  /** aktive Mailbox: persönliches Postfach oder gemeinsame Team-Mailbox */
+  aktivesKonto?: 'privat' | 'gemeinsam'
+  /** Adresse der jeweils anderen Mailbox (null = nicht eingerichtet) */
+  andereAdresse?: string | null
 }) {
   const [folders, setFolders]   = useState<OrdnerInfo[]>([])
   const [folder, setFolder]     = useState('INBOX')
@@ -109,7 +127,20 @@ export default function NachrichtenClient({
       <div className="flex items-center justify-between mb-3 gap-3">
         <div>
           <h1 className="text-2xl inline-flex items-center gap-2">Posteingang {ungelesenGesamt > 0 && <span className="pill bg-hs-blue-50 text-hs-blue-700">{ungelesenGesamt} neu</span>}</h1>
-          <p className="text-sm text-hs-text-2">{eigeneAdresse}</p>
+          <p className="text-sm text-hs-text-2 inline-flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1">
+              {aktivesKonto === 'gemeinsam' ? <Users size={13} strokeWidth={1.75} /> : <User size={13} strokeWidth={1.75} />}
+              {eigeneAdresse}
+              {aktivesKonto === 'gemeinsam' && <span className="pill bg-hs-blue-50 text-hs-blue-700">Team</span>}
+            </span>
+            {andereAdresse && (
+              <button type="button" onClick={() => mailboxWechseln(aktivesKonto === 'gemeinsam' ? 'privat' : 'gemeinsam')}
+                className="text-hs-blue-700 hover:underline text-[12.5px]"
+                title="Zwischen persönlichem Postfach und gemeinsamer Mailbox wechseln">
+                → {andereAdresse}
+              </button>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={aktualisieren} disabled={laden} className="btn-secondary" title="Aktualisieren">

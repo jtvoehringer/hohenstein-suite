@@ -1,7 +1,10 @@
-// Server-only: persönliche E-Mail-Verbindung des eingeloggten Users laden,
-// Passwörter entschlüsseln und Fehler in deutsche Meldungen übersetzen.
+// Server-only: E-Mail-Verbindung des eingeloggten Users laden (persönliches
+// Postfach oder die gemeinsame Team-Mailbox, Migration 015), Passwörter
+// entschlüsseln und Fehler in deutsche Meldungen übersetzen.
+// Welche Mailbox aktiv ist, steuert das Cookie hs_mail_konto ('gemeinsam').
 // Zugangsdaten verlassen diese Schicht nie Richtung Client.
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, type UserRole } from '@/lib/auth/roles'
 import { decryptPass } from '@/lib/email/crypto'
@@ -13,8 +16,18 @@ import type { KontoAnzeige } from './types'
 type R = Record<string, any>
 
 export const VERBINDUNG_SELECT =
-  'id, tenant_id, user_id, email_address, anzeigename, imap_aktiv, imap_host, imap_port, imap_user, imap_pass_enc, ' +
+  'id, tenant_id, user_id, email_address, anzeigename, gemeinsam, imap_aktiv, imap_host, imap_port, imap_user, imap_pass_enc, ' +
   'smtp_host, smtp_port, smtp_user, smtp_pass_enc, smtp_from_name, signatur, letzter_abruf, letzter_fehler'
+
+export const MAIL_KONTO_COOKIE = 'hs_mail_konto'
+
+/** Aktive Mailbox laut Cookie: 'gemeinsam' = Team-Mailbox, sonst persönliches Postfach */
+export async function aktivesMailKonto(): Promise<'privat' | 'gemeinsam'> {
+  try {
+    const store = await cookies()
+    return store.get(MAIL_KONTO_COOKIE)?.value === 'gemeinsam' ? 'gemeinsam' : 'privat'
+  } catch { return 'privat' }
+}
 
 export type Verbindung = {
   id: string
@@ -33,27 +46,35 @@ export type VerbindungErgebnis =
   | { ok: true; v: Verbindung; supabase: Awaited<ReturnType<typeof createSupabaseServerClient>> }
   | { ok: false; status: number; fehler: string }
 
-/** Rohzeile der Verbindung des eingeloggten Users (RLS: nur eigene Zeile) */
-export async function ladeVerbindungRoh(): Promise<{ row: R | null; tenantId: string; userId: string; role: UserRole; supabase: Awaited<ReturnType<typeof createSupabaseServerClient>> } | null> {
+/**
+ * Rohzeile der aktiven Verbindung des eingeloggten Users.
+ * konto: 'privat' (eigene Zeile), 'gemeinsam' (Team-Mailbox) – Default: laut Cookie.
+ */
+export async function ladeVerbindungRoh(konto?: 'privat' | 'gemeinsam'): Promise<{ row: R | null; tenantId: string; userId: string; role: UserRole; konto: 'privat' | 'gemeinsam'; supabase: Awaited<ReturnType<typeof createSupabaseServerClient>> } | null> {
   const membership = await getCurrentMembership()
   if (!membership) return null
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-  const { data } = await (supabase.from('user_email_connections') as any)
+  const aktiv = konto ?? await aktivesMailKonto()
+  let q = (supabase.from('user_email_connections') as any)
     .select(VERBINDUNG_SELECT)
     .eq('tenant_id', membership.tenantId)
-    .eq('user_id', user.id)
-    .maybeSingle()
-  return { row: (data as R | null) ?? null, tenantId: membership.tenantId, userId: user.id, role: membership.role, supabase }
+  q = aktiv === 'gemeinsam' ? q.eq('gemeinsam', true) : q.eq('user_id', user.id).eq('gemeinsam', false)
+  const { data } = await q.maybeSingle()
+  return { row: (data as R | null) ?? null, tenantId: membership.tenantId, userId: user.id, role: membership.role, konto: aktiv, supabase }
 }
 
-/** Verbindung inkl. entschlüsselter Passwörter – für Route-Handler */
+/** Verbindung inkl. entschlüsselter Passwörter – für Route-Handler (aktive Mailbox laut Cookie) */
 export async function ladeVerbindung(): Promise<VerbindungErgebnis> {
   const ctx = await ladeVerbindungRoh()
   if (!ctx) return { ok: false, status: 401, fehler: 'Nicht angemeldet oder kein aktiver Mandant.' }
   const r = ctx.row
-  if (!r) return { ok: false, status: 404, fehler: 'Kein E-Mail-Konto eingerichtet. Bitte unter Nachrichten → E-Mail-Konto konfigurieren.' }
+  if (!r) {
+    return ctx.konto === 'gemeinsam'
+      ? { ok: false, status: 404, fehler: 'Keine gemeinsame Mailbox eingerichtet. Bitte unter Nachrichten → E-Mail-Konto konfigurieren.' }
+      : { ok: false, status: 404, fehler: 'Kein E-Mail-Konto eingerichtet. Bitte unter Nachrichten → E-Mail-Konto konfigurieren.' }
+  }
   let imap: ImapZugang | null = null
   let smtp: SmtpZugang | null = null
   try {

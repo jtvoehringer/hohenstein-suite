@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic'
 type TestBody = {
   imap_host?: string; imap_port?: number | string; imap_user?: string; imap_pass?: string
   smtp_host?: string; smtp_port?: number | string; smtp_user?: string; smtp_pass?: string
+  /** true = gemeinsame Team-Mailbox testen (Fallback-Passwörter aus deren Zeile) */
+  gemeinsam?: boolean
 }
 
 // POST /api/nachrichten/test – IMAP-Login + SMTP-Verify.
@@ -17,7 +19,7 @@ type TestBody = {
 // Formularwerte (fehlende Passwörter fallen auf die gespeicherten zurück).
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as TestBody
-  const ctx = await ladeVerbindungRoh()
+  const ctx = await ladeVerbindungRoh(body.gemeinsam ? 'gemeinsam' : body.gemeinsam === false ? 'privat' : undefined)
   if (!ctx) return NextResponse.json({ fehler: 'Nicht angemeldet oder kein aktiver Mandant.' }, { status: 401 })
   const row = ctx.row
 

@@ -18,7 +18,7 @@ const ANBIETER = [
   { name: 'easyname', imap: 'imap.easyname.com', smtp: 'smtp.easyname.com', hinweis: '' },
 ]
 
-export default function EinstellungenForm({ konto }: { konto: KontoAnzeige }) {
+export default function EinstellungenForm({ konto, gemeinsam = false }: { konto: KontoAnzeige; gemeinsam?: boolean }) {
   const router = useRouter()
   const [f, setF] = useState({
     email_address: konto.email_address,
@@ -52,10 +52,10 @@ export default function EinstellungenForm({ konto }: { konto: KontoAnzeige }) {
   async function speichern(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true); setFehler(''); setErfolg(''); setTest(null)
-    const res = await kontoSpeichernAction(f)
+    const res = await kontoSpeichernAction(f, gemeinsam)
     if (res?.fehler) setFehler(res.fehler)
     else {
-      setErfolg('E-Mail-Konto gespeichert')
+      setErfolg(gemeinsam ? 'Gemeinsame Mailbox gespeichert' : 'E-Mail-Konto gespeichert')
       setF(prev => ({ ...prev, imap_pass: '', smtp_pass: '' }))
       router.refresh()
     }
@@ -69,6 +69,7 @@ export default function EinstellungenForm({ konto }: { konto: KontoAnzeige }) {
       const res = await fetch('/api/nachrichten/test', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          gemeinsam,
           imap_host: f.imap_host, imap_port: f.imap_port, imap_user: f.imap_user || f.email_address, imap_pass: f.imap_pass || undefined,
           smtp_host: f.smtp_host, smtp_port: f.smtp_port, smtp_user: f.smtp_user || f.imap_user || f.email_address, smtp_pass: f.smtp_pass || (konto.smtp_pass_gesetzt ? undefined : f.imap_pass) || undefined,
         }),
@@ -82,7 +83,7 @@ export default function EinstellungenForm({ konto }: { konto: KontoAnzeige }) {
 
   async function verbindungEntfernen() {
     setSaving(true); setFehler(''); setErfolg('')
-    const res = await kontoEntfernenAction()
+    const res = await kontoEntfernenAction(gemeinsam)
     if (res?.fehler) setFehler(res.fehler)
     else {
       setErfolg('Verbindung entfernt')

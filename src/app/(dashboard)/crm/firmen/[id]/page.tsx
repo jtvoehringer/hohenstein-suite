@@ -51,10 +51,20 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
     ladeMandantMitglieder(tenantId),
   ])
 
-  const { data: trialRaw } = await (supabase.from('demo_zugaenge') as any)
-    .select('id, email, s112_rolle, gueltig_bis, status')
-    .eq('firma_id', id).eq('tenant_id', tenantId).neq('status', 'geloescht')
-    .order('erstellt_am', { ascending: false }).limit(1).maybeSingle()
+  const [{ data: trialRaw }, { data: dateienRaw }] = await Promise.all([
+    (supabase.from('demo_zugaenge') as any)
+      .select('id, email, s112_rolle, gueltig_bis, status')
+      .eq('firma_id', id).eq('tenant_id', tenantId).neq('status', 'geloescht')
+      .order('erstellt_am', { ascending: false }).limit(1).maybeSingle(),
+    (supabase.from('ablage_dateien') as any)
+      .select('id, dateiname, dateityp, groesse_bytes, erstellt_am')
+      .eq('firma_id', id).eq('tenant_id', tenantId)
+      .order('erstellt_am', { ascending: false }),
+  ])
+  const dateien = ((dateienRaw ?? []) as R[]).map(d => ({
+    id: d.id as string, dateiname: d.dateiname as string, dateityp: (d.dateityp as string | null) ?? null,
+    groesse_bytes: d.groesse_bytes == null ? null : Number(d.groesse_bytes), erstellt_am: d.erstellt_am as string,
+  }))
   const trialZugang = trialRaw ? {
     email: (trialRaw as R).email as string, rolle: (trialRaw as R).s112_rolle as 'winzer' | 'leser',
     gueltigBis: (trialRaw as R).gueltig_bis as string | null, status: (trialRaw as R).status as string,
@@ -139,6 +149,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
       mitglieder={mitglieder}
       writeOk={writeOk}
       trialZugang={trialZugang}
+      dateien={dateien}
     />
   )
 }

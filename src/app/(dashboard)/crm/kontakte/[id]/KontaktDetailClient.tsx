@@ -16,6 +16,7 @@ import AktivitaetForm from '@/components/crm/AktivitaetForm'
 import AktivitaetKarte from '@/components/crm/AktivitaetKarte'
 import PipelineForm from '@/components/crm/PipelineForm'
 import PipelineListe from '@/components/crm/PipelineListe'
+import DateienKarte, { type KarteDatei } from '@/components/crm/DateienKarte'
 import { SegmentPill, LeadPill } from '@/components/crm/Pills'
 import { fmtTelefon, telHref, mapsHref, type AktivitaetMitDokumenten, type PipelineKurz } from '@/components/crm/crmUtils'
 import { LAENDER, SPRACHEN } from '@/components/crm/crmUtils'
@@ -23,7 +24,7 @@ import { LAENDER, SPRACHEN } from '@/components/crm/crmUtils'
 type WeitereFirma = { id: string; name: string; segment: string; position: string | null; hauptkontakt: boolean }
 
 export default function KontaktDetailClient({
-  kontakt, firmaSegment, weitereFirmen, aktivitaeten, pipeline, firmen, writeOk,
+  kontakt, firmaSegment, weitereFirmen, aktivitaeten, pipeline, firmen, dateien, writeOk,
 }: {
   kontakt: KontaktRow
   firmaSegment: string | null
@@ -31,6 +32,8 @@ export default function KontaktDetailClient({
   aktivitaeten: AktivitaetMitDokumenten[]
   pipeline: PipelineKurz[]
   firmen: FirmaOption[]
+  /** Datei-Anhänge des Kontakts (Ablage im Datencenter) */
+  dateien: KarteDatei[]
   writeOk: boolean
 }) {
   const router = useRouter()
@@ -224,6 +227,8 @@ export default function KontaktDetailClient({
               </div>
             )}
           </div>
+
+          <DateienKarte dateien={dateien} kontaktId={kontakt.id} writeOk={writeOk} />
 
           <div className="bg-white rounded-xl border border-hs-line p-4 space-y-3">
             <div className="flex items-center justify-between">

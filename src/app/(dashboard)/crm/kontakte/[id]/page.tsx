@@ -51,6 +51,15 @@ export default async function KontaktDetailPage({ params }: { params: Promise<{ 
   ])
   if (!kRaw) notFound()
 
+  const { data: dateienRaw } = await (supabase.from('ablage_dateien') as any)
+    .select('id, dateiname, dateityp, groesse_bytes, erstellt_am')
+    .eq('kontakt_id', id).eq('tenant_id', tenantId)
+    .order('erstellt_am', { ascending: false })
+  const dateien = ((dateienRaw ?? []) as R[]).map(d => ({
+    id: d.id as string, dateiname: d.dateiname as string, dateityp: (d.dateityp as string | null) ?? null,
+    groesse_bytes: d.groesse_bytes == null ? null : Number(d.groesse_bytes), erstellt_am: d.erstellt_am as string,
+  }))
+
   const k = kRaw as R
   const kontakt: KontaktRow = {
     id: k.id, kundennummer: k.kundennummer ?? null, vorname: k.vorname ?? null, nachname: k.nachname,
@@ -101,6 +110,7 @@ export default async function KontaktDetailPage({ params }: { params: Promise<{ 
       aktivitaeten={aktivitaeten}
       pipeline={pipeline}
       firmen={firmen}
+      dateien={dateien}
       writeOk={writeOk}
     />
   )

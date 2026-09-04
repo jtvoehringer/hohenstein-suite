@@ -22,6 +22,12 @@
 - Serientermine (Migration 014): Termine mit Wiederholung (täglich/wöchentlich/14-tägig/monatlich, Enddatum Pflicht, max. 2 Jahre)
   werden beim Anlegen als materialisierte Einzeltermine mit gemeinsamer `serie_id` + `serie_regel` erzeugt (createAktivitaet);
   Bearbeiten/Verschieben wirkt je Instanz, Löschen bietet „diesen / ab diesem / ganze Serie" (deleteAktivitaetSerie).
+- Datencenter (Migration 016): Tab /datencenter mit Ordnerbaum (`ablage_ordner`) + Dateien (`ablage_dateien`, Bucket `datencenter`, 50 MB);
+  Datei-Anhänge an Firmen/Kontakten laufen über dieselbe Ablage (firma_id/kontakt_id, Karte „Dateien" auf den Detailseiten,
+  im Datencenter unter „CRM-Anhänge"); Termine nutzen weiter `aktivitaet_dokumente`. Upload/Download: /api/datencenter/datei.
+- Gemeinsame Mailbox (Migration 015): zusätzlich zu den persönlichen Postfächern eine team-weite Verbindung je Mandant
+  (`user_email_connections.gemeinsam`, z. B. office@hohenstein-partner.at); aktive Mailbox wählt das Cookie `hs_mail_konto`
+  (Umschalter im Posteingang neben der Adresse), Einrichtung unter Nachrichten → E-Mail-Konto → Gemeinsame Mailbox.
 - Verbindlichkeiten: `eingangsrechnungen` (/rechnungen/verbindlichkeiten); Bezahlen bucht E&A-Ausgabe (`import_quelle='eingangsrechnung'`),
   Zahlung zurücknehmen löscht sie (nur wenn nicht gesperrt). Fällige Eingangs-/überfällige Ausgangsrechnungen erscheinen in der Hinweis-Glocke.
 

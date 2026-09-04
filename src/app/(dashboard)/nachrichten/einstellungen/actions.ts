@@ -25,8 +25,11 @@ export type KontoEingabe = {
 
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/
 
-/** Persönliches E-Mail-Konto speichern (Upsert auf tenant_id + user_id; RLS: nur eigene Zeile) */
-export async function kontoSpeichernAction(input: KontoEingabe): Promise<{ fehler?: string }> {
+/**
+ * E-Mail-Konto speichern – persönliches Postfach oder (gemeinsam=true) die
+ * team-weite Mailbox des Mandanten, z. B. office@hohenstein-partner.at.
+ */
+export async function kontoSpeichernAction(input: KontoEingabe, gemeinsam = false): Promise<{ fehler?: string }> {
   const membership = await getCurrentMembership()
   if (!membership) return { fehler: 'Nicht angemeldet oder kein aktiver Mandant.' }
   const supabase = await createSupabaseServerClient()
@@ -53,14 +56,20 @@ export async function kontoSpeichernAction(input: KontoEingabe): Promise<{ fehle
     smtp_from_name: input.smtp_from_name.trim() || input.anzeigename.trim() || null,
     signatur:       input.signatur.trim() || null,
   }
+  patch.gemeinsam = gemeinsam
+
+  // Zielzeile ermitteln (partial unique: 1 privates Konto je User, 1 gemeinsame Mailbox je Mandant)
+  let zielQuery = (supabase.from('user_email_connections') as any)
+    .select('id, smtp_pass_enc').eq('tenant_id', membership.tenantId)
+  zielQuery = gemeinsam ? zielQuery.eq('gemeinsam', true) : zielQuery.eq('user_id', user.id).eq('gemeinsam', false)
+  const { data: bestehend } = await zielQuery.maybeSingle()
+
   try {
     if (input.imap_pass) patch.imap_pass_enc = encryptPass(input.imap_pass)
     if (input.smtp_pass) patch.smtp_pass_enc = encryptPass(input.smtp_pass)
-    else if (input.imap_pass) {
+    else if (input.imap_pass && !(bestehend as R | null)?.smtp_pass_enc) {
       // Kein eigenes SMTP-Passwort eingegeben: IMAP-Passwort übernehmen, sofern noch keines gespeichert ist
-      const { data: bestehend } = await (supabase.from('user_email_connections') as any)
-        .select('smtp_pass_enc').eq('tenant_id', membership.tenantId).eq('user_id', user.id).maybeSingle()
-      if (!(bestehend as R | null)?.smtp_pass_enc) patch.smtp_pass_enc = encryptPass(input.imap_pass)
+      patch.smtp_pass_enc = encryptPass(input.imap_pass)
     }
   } catch (e) {
     return { fehler: e instanceof Error ? e.message : String(e) }
@@ -69,23 +78,26 @@ export async function kontoSpeichernAction(input: KontoEingabe): Promise<{ fehle
   // letzter_fehler zurücksetzen – wird beim nächsten Test/Abruf neu gesetzt
   patch.letzter_fehler = null
 
-  const { error } = await (supabase.from('user_email_connections') as any)
-    .upsert(patch, { onConflict: 'tenant_id,user_id' })
+  const { error } = bestehend
+    ? await (supabase.from('user_email_connections') as any).update(patch).eq('id', (bestehend as R).id)
+    : await (supabase.from('user_email_connections') as any).insert(patch)
   if (error) return { fehler: error.message }
   revalidatePath('/nachrichten')
   revalidatePath('/nachrichten/einstellungen')
   return {}
 }
 
-/** Verbindung samt Zugangsdaten entfernen */
-export async function kontoEntfernenAction(): Promise<{ fehler?: string }> {
+/** Verbindung samt Zugangsdaten entfernen (persönlich oder gemeinsame Mailbox) */
+export async function kontoEntfernenAction(gemeinsam = false): Promise<{ fehler?: string }> {
   const membership = await getCurrentMembership()
   if (!membership) return { fehler: 'Nicht angemeldet oder kein aktiver Mandant.' }
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { fehler: 'Nicht angemeldet.' }
-  const { error } = await (supabase.from('user_email_connections') as any)
-    .delete().eq('tenant_id', membership.tenantId).eq('user_id', user.id)
+  let q = (supabase.from('user_email_connections') as any)
+    .delete().eq('tenant_id', membership.tenantId)
+  q = gemeinsam ? q.eq('gemeinsam', true) : q.eq('user_id', user.id).eq('gemeinsam', false)
+  const { error } = await q
   if (error) return { fehler: error.message }
   revalidatePath('/nachrichten')
   revalidatePath('/nachrichten/einstellungen')

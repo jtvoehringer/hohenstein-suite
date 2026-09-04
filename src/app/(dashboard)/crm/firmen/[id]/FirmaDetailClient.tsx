@@ -18,6 +18,7 @@ import AktivitaetKarte from '@/components/crm/AktivitaetKarte'
 import PipelineForm from '@/components/crm/PipelineForm'
 import PipelineListe from '@/components/crm/PipelineListe'
 import { SegmentPill, LeadPill, FlagPill } from '@/components/crm/Pills'
+import DateienKarte, { type KarteDatei } from '@/components/crm/DateienKarte'
 import { fmtTelefon, telHref, mapsHref, LAENDER, type AktivitaetMitDokumenten, type PipelineKurz } from '@/components/crm/crmUtils'
 
 export type Ansprechpartner = {
@@ -37,7 +38,7 @@ export type Ansprechpartner = {
 }
 
 export default function FirmaDetailClient({
-  firma, ansprechpartner, aktivitaeten, pipeline, mitglieder, writeOk, trialZugang,
+  firma, ansprechpartner, aktivitaeten, pipeline, mitglieder, writeOk, trialZugang, dateien,
 }: {
   firma: FirmaRow
   ansprechpartner: Ansprechpartner[]
@@ -48,6 +49,8 @@ export default function FirmaDetailClient({
   writeOk: boolean
   /** software:112-Trialzugang dieser Firma (z.B. über hohenstein-partner.at), falls vorhanden */
   trialZugang: { email: string; rolle: 'winzer' | 'leser'; gueltigBis: string | null; status: string } | null
+  /** Datei-Anhänge der Firma (Ablage im Datencenter) */
+  dateien: KarteDatei[]
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -301,6 +304,8 @@ export default function FirmaDetailClient({
               <p className="text-xs text-hs-text-1 whitespace-pre-wrap pt-2 border-t border-hs-line">{firma.notizen}</p>
             )}
           </div>
+
+          <DateienKarte dateien={dateien} firmaId={firma.id} writeOk={writeOk} />
 
           {trialZugang && (
             <div className="bg-white rounded-xl border border-hs-line p-4 space-y-2">

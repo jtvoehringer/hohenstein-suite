@@ -4,7 +4,7 @@
 // TabNav und die Befehlspalette (Strg K). Bewusst frei von Server-Imports.
 
 import {
-  LayoutDashboard, Users, ReceiptText, FlaskConical, Settings, Mail, FileText,
+  LayoutDashboard, Users, ReceiptText, FlaskConical, Settings, Mail, FileText, FolderOpen,
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/lib/auth/roles'
@@ -52,6 +52,12 @@ const NAV: NavGroup[] = [
     items: [
       { href: '/nachrichten',               label: 'Posteingang',   keywords: 'mail nachrichten imap' },
       { href: '/nachrichten/einstellungen', label: 'E-Mail-Konto',  child: true, keywords: 'imap smtp zugang passwort' },
+    ],
+  },
+  {
+    key: 'datencenter', label: 'Datencenter', icon: FolderOpen,
+    items: [
+      { href: '/datencenter', label: 'Ablage', keywords: 'dateien dokumente ordner ablage upload explorer sharepoint' },
     ],
   },
   {
