@@ -6,6 +6,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { getCurrentMembership, canAdmin, canWrite, type UserRole } from '@/lib/auth/roles'
 import { pruefeZeitraumOffen, uebernehmeStandardkategorien } from '@/lib/ea/server'
 import { GUELTIGE_UST_SAETZE, type BuchungInput } from '@/lib/ea/types'
+import type { AnlageInput } from '@/lib/ea/anlagen'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
@@ -444,4 +445,49 @@ export async function loescheBelegAction(belegId: string): Promise<ActionResult>
 export async function loescheBelegForm(belegId: string): Promise<void> {
   const res = await loescheBelegAction(belegId)
   if (!res.ok) console.error('loescheBeleg:', res.error)
+}
+
+// ── Anlagenverzeichnis (Migration 017) ────────────────────────────────────────
+
+export async function speichereAnlage(input: AnlageInput, id?: string): Promise<ActionResult<{ id: string }>> {
+  const { supabase, tenantId, role, userId } = await getCtx()
+  if (!canWrite(role)) return { ok: false, error: KEIN_SCHREIBRECHT }
+  const bezeichnung = (input.bezeichnung ?? '').trim()
+  if (!bezeichnung) return { ok: false, error: 'Bitte eine Bezeichnung angeben.' }
+  if (!input.anschaffungsdatum || !/^\d{4}-\d{2}-\d{2}$/.test(input.anschaffungsdatum)) return { ok: false, error: 'Bitte ein gültiges Anschaffungsdatum angeben.' }
+  const kosten = Number(input.anschaffungskosten)
+  if (!Number.isFinite(kosten) || kosten < 0) return { ok: false, error: 'Bitte gültige Anschaffungskosten angeben.' }
+  const nd = Math.max(0, Math.min(60, Math.round(Number(input.nutzungsdauer_jahre) || 0)))
+  if (!input.sofortabschreibung && nd < 1) return { ok: false, error: 'Nutzungsdauer mindestens 1 Jahr – oder Sofortabschreibung wählen.' }
+  const restwert = Math.max(0, Number(input.restwert) || 0)
+  if (restwert > kosten) return { ok: false, error: 'Der Restwert darf die Anschaffungskosten nicht übersteigen.' }
+  if (input.abgang_datum && input.abgang_datum < input.anschaffungsdatum) return { ok: false, error: 'Das Abgangsdatum liegt vor der Anschaffung.' }
+
+  const w: R = {
+    bezeichnung, gruppe: input.gruppe || 'sonstiges',
+    anschaffungsdatum: input.anschaffungsdatum, anschaffungskosten: kosten,
+    nutzungsdauer_jahre: nd, sofortabschreibung: !!input.sofortabschreibung, restwert,
+    abgang_datum: input.abgang_datum || null,
+    abgang_erloes: input.abgang_datum && input.abgang_erloes != null && input.abgang_erloes !== ('' as unknown) ? Number(input.abgang_erloes) : null,
+    lieferant: (input.lieferant ?? '').trim() || null,
+    belegnummer: (input.belegnummer ?? '').trim() || null,
+    notizen: (input.notizen ?? '').trim() || null,
+  }
+  const res = id
+    ? await (supabase.from('anlagen') as any).update(w).eq('id', id).eq('tenant_id', tenantId).select('id').single()
+    : await (supabase.from('anlagen') as any).insert({ ...w, tenant_id: tenantId, erstellt_von: userId }).select('id').single()
+  if (res.error) return { ok: false, error: (res.error as R).message }
+  revalidatePath('/buchhaltung/anlagen')
+  revalidatePath('/reporting')
+  return { ok: true, data: { id: (res.data as R).id } }
+}
+
+export async function loescheAnlage(id: string): Promise<ActionResult> {
+  const { supabase, tenantId, role } = await getCtx()
+  if (!canWrite(role)) return { ok: false, error: KEIN_SCHREIBRECHT }
+  const { error } = await (supabase.from('anlagen') as any).delete().eq('id', id).eq('tenant_id', tenantId)
+  if (error) return { ok: false, error: (error as R).message }
+  revalidatePath('/buchhaltung/anlagen')
+  revalidatePath('/reporting')
+  return { ok: true }
 }

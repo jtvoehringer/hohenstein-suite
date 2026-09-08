@@ -34,6 +34,7 @@ const NAV: NavGroup[] = [
     items: [
       { href: '/dashboard',   label: 'Dashboard', keywords: 'start heute cockpit übersicht kpi' },
       { href: '/aufgaben',    label: 'Aufgaben',  keywords: 'todo offen in arbeit erledigt verantwortlich fällig' },
+      { href: '/reporting',   label: 'Reporting', keywords: 'report unternehmen vermögen anlagevermögen umlaufvermögen forderungen verbindlichkeiten einnahmen aufwendungen konten liquidität kennzahlen' },
     ],
   },
   {
@@ -67,6 +68,7 @@ const NAV: NavGroup[] = [
       { href: '/buchhaltung/belege',          label: 'Belege',          child: true, keywords: 'scan foto upload ocr' },
       { href: '/buchhaltung/kategorien',      label: 'Kategorien',      child: true },
       { href: '/buchhaltung/dauerauftraege',  label: 'Daueraufträge',   child: true, keywords: 'wiederkehrend' },
+      { href: '/buchhaltung/anlagen',         label: 'Anlagen',         child: true, keywords: 'anlagenverzeichnis afa abschreibung anlagevermögen buchwert gwg' },
       { href: '/buchhaltung/monatsabschluss', label: 'Monatsabschluss', child: true },
       { href: '/buchhaltung/uva',             label: 'UVA-Meldung',     keywords: 'umsatzsteuer finanzonline' },
       { href: '/konten',                      label: 'Konten',          keywords: 'bank kassa abstimmung' },

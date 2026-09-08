@@ -22,6 +22,12 @@
 - Serientermine (Migration 014): Termine mit Wiederholung (täglich/wöchentlich/14-tägig/monatlich, Enddatum Pflicht, max. 2 Jahre)
   werden beim Anlegen als materialisierte Einzeltermine mit gemeinsamer `serie_id` + `serie_regel` erzeugt (createAktivitaet);
   Bearbeiten/Verschieben wirkt je Instanz, Löschen bietet „diesen / ab diesem / ganze Serie" (deleteAktivitaetSerie).
+- Reporting (/reporting, Übersicht → Reporting): Unternehmens-Cockpit je Geschäftsjahr mit Stichtag – KPIs (Einnahmen/Aufwendungen/Ergebnis
+  netto, Liquidität, Forderungen, Verbindlichkeiten), Vermögensübersicht als Nebenrechnung zur E&A (Anlagevermögen zu Buchwerten,
+  Umlaufvermögen = Kontensalden + offene Ausgangsrechnungen, Verbindlichkeiten = offene Eingangsrechnungen + USt-Saldo-Schätzung),
+  Monatsverlauf, Kategorien mit Vorjahr, Konten, USt/UVA; Daten in `reporting/_data.ts`, Druck/PDF über Print-CSS.
+- Anlagenverzeichnis (Migration 017, /buchhaltung/anlagen): Tabelle `anlagen`, lineare AfA mit Halbjahresregel und
+  GWG-Sofortabschreibung, Abgang mit Datum/Erlös; Berechnung in `src/lib/ea/anlagen.ts` (afaPlan/afaZumStichtag).
 - Datencenter (Migration 016): Tab /datencenter mit Ordnerbaum (`ablage_ordner`) + Dateien (`ablage_dateien`, Bucket `datencenter`, 50 MB);
   Datei-Anhänge an Firmen/Kontakten laufen über dieselbe Ablage (firma_id/kontakt_id, Karte „Dateien" auf den Detailseiten,
   im Datencenter unter „CRM-Anhänge"); Termine nutzen weiter `aktivitaet_dokumente`. Upload/Download: /api/datencenter/datei.
