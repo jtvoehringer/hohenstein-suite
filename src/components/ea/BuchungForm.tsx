@@ -33,11 +33,13 @@ type Props = {
   /** Ziel nach Erfolg; `{id}` wird durch die Buchungs-ID ersetzt (falls vorhanden) */
   erfolgHref?: string
   hinweis?: string | null
+  /** Neue Buchung: bei einer Ausgabe in Kontenklasse 0 (Anlagevermögen) nach dem Speichern zum Anlagenverzeichnis weiterleiten */
+  anlageWeiterleitung?: boolean
 }
 
 export default function BuchungForm({
   modus, ustStandard, kategorien, konten, firmen, initial, gesperrt = false,
-  submitLabel = 'Buchung speichern', abbrechenHref = '/buchhaltung', onSubmit, erfolgHref = '/buchhaltung?id={id}', hinweis,
+  submitLabel = 'Buchung speichern', abbrechenHref = '/buchhaltung', onSubmit, erfolgHref = '/buchhaltung?id={id}', hinweis, anlageWeiterleitung = false,
 }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -93,6 +95,9 @@ export default function BuchungForm({
   const betrag = parseBetrag(betragText)
   const betragOk = Number.isFinite(betrag) && betrag >= 0
   const netto  = betragOk ? (modus === 'brutto' ? bruttoZuNetto(betrag, ustSatz) : Math.round(betrag * 100) / 100) : null
+  // Anlagenkauf: Ausgabe in einer Kategorie der Kontenklasse 0 → gehört ins Anlagenverzeichnis (Migration 018)
+  const gewaehlteKategorie = kategorien.find(k => k.id === kategorieId)
+  const istAnlagenkauf = typ === 'ausgabe' && gewaehlteKategorie != null && Number(gewaehlteKategorie.konto_nr) >= 1 && Number(gewaehlteKategorie.konto_nr) < 1000
   const brutto = netto != null ? nettoZuBrutto(netto, ustSatz) : null
   const ust    = netto != null ? ustBetrag(netto, ustSatz) : null
 
@@ -115,6 +120,7 @@ export default function BuchungForm({
       const res = await onSubmit(input)
       if (!res.ok) { setFehler(res.error); return }
       const id = (res as { ok: true; data?: { id: string } }).data?.id
+      if (anlageWeiterleitung && istAnlagenkauf && id) { router.push(`/buchhaltung/anlagen?buchung=${id}`); router.refresh(); return }
       router.push(id ? erfolgHref.replace('{id}', id) : erfolgHref.replace('?id={id}', '').replace('{id}', ''))
       router.refresh()
     })
@@ -197,6 +203,11 @@ export default function BuchungForm({
               </option>
             ))}
           </select>
+          {istAnlagenkauf && (
+            <p className="text-xs text-hs-blue-700 mt-1">
+              Kontenklasse 0 (Anlagevermögen): {anlageWeiterleitung ? 'nach dem Speichern geht es direkt zum Anlagenverzeichnis, um die Anlage mit Nutzungsdauer und AfA zu erfassen.' : 'die Anlage wird im Anlagenverzeichnis abgeschrieben.'}
+            </p>
+          )}
           {kategorien.length === 0 && (
             <p className="text-xs text-hs-text-2 mt-1">Noch keine Kategorien – <Link href="/buchhaltung/kategorien" className="text-hs-blue-700 hover:underline">Standardkategorien übernehmen</Link>.</p>
           )}

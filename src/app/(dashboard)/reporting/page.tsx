@@ -168,12 +168,41 @@ export default async function ReportingPage({ searchParams }: { searchParams: Pr
       {/* KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         <Kpi label={`Einnahmen ${d.jahr}`} wert={kpi.einnahmenNetto} icon={<TrendingUp size={16} strokeWidth={1.75} />} tone="ok" sub="netto" delta={<Delta ist={kpi.einnahmenNetto} vorjahr={kpi.einnahmenVorjahr} />} />
-        <Kpi label={`Aufwendungen ${d.jahr}`} wert={kpi.ausgabenNetto} icon={<TrendingDown size={16} strokeWidth={1.75} />} sub={`davon abzugsfähig ${fmtEuro(kpi.ausgabenAbzugsfaehig)}`} delta={<Delta ist={kpi.ausgabenNetto} vorjahr={kpi.ausgabenVorjahr} invers />} />
+        <Kpi label={`Aufwendungen ${d.jahr}`} wert={kpi.ausgabenNetto} icon={<TrendingDown size={16} strokeWidth={1.75} />} sub={`davon abzugsfähig ${fmtEuro(kpi.ausgabenAbzugsfaehig)}${kpi.afaGebucht > 0 ? ' · ohne gebuchte AfA' : ''}`} delta={<Delta ist={kpi.ausgabenNetto} vorjahr={kpi.ausgabenVorjahr} invers />} />
         <Kpi label="Ergebnis (E&A)" wert={kpi.ergebnis} icon={<FileText size={16} strokeWidth={1.75} />} tone={kpi.ergebnis >= 0 ? 'blue' : 'err'} sub="Einnahmen − Ausgaben, netto" delta={<Delta ist={kpi.ergebnis} vorjahr={kpi.ergebnisVorjahr} />} />
         <Kpi label="Liquidität" wert={kpi.liquiditaet} icon={<Wallet size={16} strokeWidth={1.75} />} tone={kpi.liquiditaet >= 0 ? 'neutral' : 'err'} sub={`${d.konten.length} Konten`} />
         <Kpi label="Offene Forderungen" wert={kpi.forderungenOffen} icon={<Receipt size={16} strokeWidth={1.75} />} tone={kpi.forderungenUeberfaellig > 0 ? 'err' : 'neutral'} sub={kpi.forderungenUeberfaellig > 0 ? `davon überfällig ${fmtEuro(kpi.forderungenUeberfaellig)}` : `${d.forderungen.length} Rechnungen`} />
         <Kpi label="Offene Verbindlichkeiten" wert={kpi.verbindlichkeitenOffen} icon={<Landmark size={16} strokeWidth={1.75} />} tone={kpi.verbindlichkeitenUeberfaellig > 0 ? 'err' : 'neutral'} sub={kpi.verbindlichkeitenUeberfaellig > 0 ? `davon überfällig ${fmtEuro(kpi.verbindlichkeitenUeberfaellig)}` : `${d.verbindlichkeiten.length} Eingangsrechnungen`} />
       </div>
+
+      {/* Erfolgsrechnung nach AfA (Anlagenkäufe aktivieren, AfA laut Verzeichnis) */}
+      {(kpi.anlagenkaeufe !== 0 || kpi.afaJahr !== 0 || kpi.anlagenImVerzeichnis > 0) && (
+        <div className="bg-white rounded-xl border border-hs-line overflow-hidden break-inside-avoid">
+          <div className="px-4 py-3 border-b border-hs-line flex items-center justify-between">
+            <h2 className="text-sm">Ergebnis nach AfA {d.jahr}</h2>
+            <span className="text-[11.5px] text-hs-text-2">steuerlich, vereinfacht – Anlagenkäufe werden aktiviert und über die AfA verteilt</span>
+          </div>
+          <div className="p-4 text-sm space-y-1.5 max-w-2xl">
+            <div className="flex justify-between"><span className="text-hs-text-1">Ergebnis (E&A, zahlungswirksam)</span><span className="tabular-nums">{fmtEuro(kpi.ergebnis)}</span></div>
+            <div className="flex justify-between"><span className="text-hs-text-1">+ Anlagenkäufe {d.jahr} (Kontenklasse 0, aktivierungspflichtig)</span><span className="tabular-nums">{kpi.anlagenkaeufe > 0 ? `+ ${fmtEuro(kpi.anlagenkaeufe)}` : '–'}</span></div>
+            <div className="flex justify-between">
+              <span className="text-hs-text-1">
+                − Abschreibung (AfA) {d.jahr} laut Anlagenverzeichnis
+                <span className="text-hs-text-2 text-[11.5px]">
+                  {kpi.afaJahr > 0 || kpi.afaGebucht > 0 ? (
+                    Math.abs(kpi.afaJahr - kpi.afaGebucht) < 0.005 ? ` · gebucht per 31.12.${d.jahr}` : kpi.afaGebucht <= 0 ? ' · noch nicht gebucht' : ` · gebucht ${fmtEuro(kpi.afaGebucht)} – weicht ab`
+                  ) : null}
+                </span>
+              </span>
+              <span className="tabular-nums">{kpi.afaJahr > 0 ? `− ${fmtEuro(kpi.afaJahr)}` : kpi.anlagenImVerzeichnis === 0 ? <Link href="/buchhaltung/anlagen" className="text-hs-blue-700 hover:underline print-hide">Anlagenverzeichnis anlegen</Link> : '–'}</span>
+            </div>
+            <div className={`flex justify-between font-semibold pt-1.5 border-t border-hs-line ${kpi.ergebnisNachAfa >= 0 ? 'text-hs-blue-700' : 'text-hs-err-fg'}`}>
+              <span>Ergebnis nach AfA</span>
+              <span className="tabular-nums">{fmtEuro(kpi.ergebnisNachAfa)}{kpi.ergebnisNachAfaVorjahr !== 0 && <span className="text-[11px] font-normal text-hs-text-2 ml-2">Vorjahr {fmtEuro(kpi.ergebnisNachAfaVorjahr)}</span>}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Vermögensübersicht */}
       <div className="bg-white rounded-xl border border-hs-line overflow-hidden break-inside-avoid">
@@ -184,7 +213,7 @@ export default async function ReportingPage({ searchParams }: { searchParams: Pr
         <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-hs-line text-sm">
           <div className="p-4 space-y-1.5">
             <p className="overline mb-2">Vermögen</p>
-            <div className="flex justify-between"><span className="text-hs-text-1">Anlagevermögen (Buchwerte)</span><span className="tabular-nums">{fmtEuro(v.anlagevermoegen)}</span></div>
+            <div className="flex justify-between"><span className="text-hs-text-1">Anlagevermögen (Buchwerte {d.istLaufendesJahr ? `1.1.${d.jahr}` : `31.12.${d.jahr}`})</span><span className="tabular-nums">{fmtEuro(v.anlagevermoegen)}</span></div>
             <div className="flex justify-between"><span className="text-hs-text-1">Bank- und Kassakonten</span><span className="tabular-nums">{fmtEuro(v.kontenSumme)}</span></div>
             <div className="flex justify-between"><span className="text-hs-text-1">Offene Forderungen</span><span className="tabular-nums">{fmtEuro(v.forderungen)}</span></div>
             <div className="flex justify-between text-hs-text-2 text-xs pl-3"><span>= Umlaufvermögen</span><span className="tabular-nums">{fmtEuro(v.umlaufvermoegen)}</span></div>
@@ -306,11 +335,14 @@ export default async function ReportingPage({ searchParams }: { searchParams: Pr
         <div className="bg-white rounded-xl border border-hs-line overflow-hidden break-inside-avoid">
           <div className="flex items-center justify-between px-4 py-3 border-b border-hs-line">
             <h2 className="text-sm">Anlagevermögen</h2>
-            <Link href="/buchhaltung/anlagen" className="text-xs text-hs-blue-700 hover:underline print-hide">Anlagenverzeichnis →</Link>
+            <span className="flex items-center gap-3 print-hide">
+              <Link href={`/buchhaltung/anlagen/spiegel?jahr=${d.jahr}`} className="text-xs text-hs-blue-700 hover:underline">Anlagenspiegel →</Link>
+              <Link href={`/buchhaltung/anlagen?jahr=${d.jahr}`} className="text-xs text-hs-blue-700 hover:underline">Anlagenverzeichnis →</Link>
+            </span>
           </div>
           {d.anlagen.length === 0 ? <p className="px-4 py-5 text-sm text-hs-text-2">Kein Anlagevermögen im Bestand – Anlagen im Anlagenverzeichnis erfassen.</p> : (
             <table className="w-full text-sm">
-              <thead className="table-head"><tr><th className="text-left px-4 py-1.5">Anlage</th><th className="text-right px-3 py-1.5 hidden sm:table-cell">AfA {d.jahr}</th><th className="text-right px-4 py-1.5">Buchwert</th></tr></thead>
+              <thead className="table-head"><tr><th className="text-left px-4 py-1.5">Anlage</th><th className="text-right px-3 py-1.5 hidden sm:table-cell">AfA {d.jahr}</th><th className="text-right px-4 py-1.5">Buchwert {d.istLaufendesJahr ? '1.1.' : '31.12.'}</th></tr></thead>
               <tbody className="divide-y divide-hs-line">
                 {d.anlagen.map(a => (
                   <tr key={a.id}>

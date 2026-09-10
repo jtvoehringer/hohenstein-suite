@@ -26,8 +26,15 @@
   netto, Liquidität, Forderungen, Verbindlichkeiten), Vermögensübersicht als Nebenrechnung zur E&A (Anlagevermögen zu Buchwerten,
   Umlaufvermögen = Kontensalden + offene Ausgangsrechnungen, Verbindlichkeiten = offene Eingangsrechnungen + USt-Saldo-Schätzung),
   Monatsverlauf, Kategorien mit Vorjahr, Konten, USt/UVA; Daten in `reporting/_data.ts`, Druck/PDF über Print-CSS.
-- Anlagenverzeichnis (Migration 017, /buchhaltung/anlagen): Tabelle `anlagen`, lineare AfA mit Halbjahresregel und
-  GWG-Sofortabschreibung, Abgang mit Datum/Erlös; Berechnung in `src/lib/ea/anlagen.ts` (afaPlan/afaZumStichtag).
+- Anlagenverzeichnis (Migrationen 017/018, /buchhaltung/anlagen, übernommen aus KPS Smart Buchhaltung Wellen 7/7b/8):
+  Tabelle `anlagen` mit AfA-Methode linear | degressiv (max. 30 %, Wechsel auf linear) | gwg, Halbjahresregel bei Zugang 2. HJ /
+  Abgang 1. HJ, Konto-Nr. (Kontenklasse 0), Abgang mit Datum/Erlös; Verknüpfung Anlage ↔ Anschaffungsbuchung (`anlagen.transaktion_id`,
+  Kandidaten = Ausgaben in Kategorien mit konto_nr 1–999; Buchungsliste zeigt Badges „Anlage"/„Anlage anlegen"/„AfA", BuchungForm leitet
+  bei neuer Kontenklasse-0-Ausgabe zu `/buchhaltung/anlagen?buchung=<id>`). AfA-Buchung am Jahresende (`bucheAfa`/`afaZuruecknehmen`):
+  je Anlage eine Ausgabe „Abschreibung (AfA)" (Systemkategorie 7010, 0 % USt, ohne Konto, `ea_transaktionen.anlage_id`, eindeutig je Jahr).
+  Anlagenspiegel druckbar (A4 quer) unter /buchhaltung/anlagen/spiegel?jahr=. Reporting rechnet AfA-Buchungen aus den Aufwendungen heraus und
+  zeigt „Ergebnis nach AfA" (= Ergebnis + Anlagenkäufe Kontenklasse 0 − AfA laut Verzeichnis). Buchwert-Semantik: AfA wird jährlich per
+  31.12. gebucht, im laufenden Jahr gilt der Buchwert 1.1. Berechnung in `src/lib/ea/anlagen.ts`.
 - Datencenter (Migration 016): Tab /datencenter mit Ordnerbaum (`ablage_ordner`) + Dateien (`ablage_dateien`, Bucket `datencenter`, 50 MB);
   Datei-Anhänge an Firmen/Kontakten laufen über dieselbe Ablage (firma_id/kontakt_id, Karte „Dateien" auf den Detailseiten,
   im Datencenter unter „CRM-Anhänge"); Termine nutzen weiter `aktivitaet_dokumente`. Upload/Download: /api/datencenter/datei.

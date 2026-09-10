@@ -44,6 +44,7 @@ export default async function BuchungNeuPage({ searchParams }: { searchParams: P
         firmen={firmen}
         initial={{ typ: sp.typ === 'einnahme' ? 'einnahme' : 'ausgabe' }}
         onSubmit={speichern}
+        anlageWeiterleitung
       />
     </div>
   )

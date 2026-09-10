@@ -7,6 +7,13 @@
 // „Vermögen" ist daher eine Nebenrechnung: Anlagevermögen = Buchwerte laut
 // Anlagenverzeichnis, Umlaufvermögen = Kontensalden + offene Forderungen,
 // Verbindlichkeiten = offene Eingangsrechnungen + USt-Saldo (Schätzung).
+//
+// AfA (Migration 018): AfA-Buchungen (ea_transaktionen.anlage_id) sind nicht
+// zahlungswirksam. Einnahmen/Aufwendungen/Kategorien/Monate zeigen die
+// zahlungswirksame Sicht OHNE diese Buchungen; die AfA kommt einmal – aus dem
+// Anlagenverzeichnis – als eigene Zeile dazu (sonst zählte sie doppelt).
+// Anlagenkäufe (Ausgaben in Kontenklasse 0) sind aktivierungspflichtig und
+// werden für das „Ergebnis nach AfA" wieder herausgerechnet.
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { heuteIso, MONATE_KURZ } from '@/lib/format'
@@ -45,6 +52,16 @@ export type ReportDaten = {
     forderungenUeberfaellig: number
     verbindlichkeitenOffen: number
     verbindlichkeitenUeberfaellig: number
+    /** Ausgaben in Kontenklasse 0 (aktivierungspflichtig) im Jahr */
+    anlagenkaeufe: number
+    /** AfA des Jahres laut Anlagenverzeichnis */
+    afaJahr: number
+    /** davon bereits als AfA-Buchung erfasst (per 31.12.) */
+    afaGebucht: number
+    /** Ergebnis + Anlagenkäufe − AfA (steuerlich, vereinfacht) */
+    ergebnisNachAfa: number
+    ergebnisNachAfaVorjahr: number
+    anlagenImVerzeichnis: number
   }
   vermoegen: {
     anlagevermoegen: number
@@ -92,10 +109,10 @@ export async function ladeReport(tenantId: string, jahrParam?: number): Promise<
     ladeKontenMitSaldo(supabase, tenantId, true),
     ladeAnlagen(supabase, tenantId),
     alleZeilen(() => q('ea_transaktionen')
-      .select('id, typ, datum, betrag_netto, ust_betrag, betrag_brutto, betrag_abzugsfaehig, abzugsfaehig_pct, kategorie_id')
+      .select('id, typ, datum, betrag_netto, ust_betrag, betrag_brutto, betrag_abzugsfaehig, abzugsfaehig_pct, kategorie_id, anlage_id')
       .eq('tenant_id', tenantId).gte('datum', von).lte('datum', bis).order('datum').order('id')),
     alleZeilen(() => q('ea_transaktionen')
-      .select('id, typ, betrag_netto, kategorie_id')
+      .select('id, typ, betrag_netto, kategorie_id, anlage_id')
       .eq('tenant_id', tenantId).gte('datum', vjVon).lte('datum', vjBis).order('id')),
     q('ea_kategorien').select('id, name, konto_nr, typ, sortierung').eq('tenant_id', tenantId),
     alleZeilen(() => q('belege')
@@ -110,10 +127,22 @@ export async function ladeReport(tenantId: string, jahrParam?: number): Promise<
     q('ea_transaktionen').select('datum').eq('tenant_id', tenantId).order('datum', { ascending: true }).limit(1),
   ])
 
-  const tx = (txRaw ?? []) as R[]
-  const vj = (vjRaw ?? []) as R[]
   const kategorien = new Map<string, { name: string; konto_nr: number | null; sortierung: number }>()
   for (const k of (katRaw ?? []) as R[]) kategorien.set(k.id, { name: k.name, konto_nr: k.konto_nr ?? null, sortierung: Number(k.sortierung ?? 0) })
+
+  // AfA-Buchungen (anlage_id) getrennt halten – zahlungswirksame Sicht ohne sie
+  const txAlle = (txRaw ?? []) as R[]
+  const vjAlle = (vjRaw ?? []) as R[]
+  const tx = txAlle.filter(t => !t.anlage_id)
+  const vj = vjAlle.filter(t => !t.anlage_id)
+  const afaGebucht = r2(txAlle.filter(t => t.anlage_id && t.typ === 'ausgabe').reduce((s, t) => s + Number(t.betrag_netto ?? 0), 0))
+  const istAnlagenkauf = (t: R) => {
+    if (t.typ !== 'ausgabe' || !t.kategorie_id) return false
+    const k = kategorien.get(t.kategorie_id)?.konto_nr
+    return k != null && k >= 1 && k < 1000
+  }
+  const anlagenkaeufe = r2(tx.filter(istAnlagenkauf).reduce((s, t) => s + Number(t.betrag_netto ?? 0), 0))
+  const anlagenkaeufeVorjahr = r2(vj.filter(istAnlagenkauf).reduce((s, t) => s + Number(t.betrag_netto ?? 0), 0))
 
   // ── Einnahmen / Ausgaben nach Kategorie ────────────────────────────────────
   function nachKategorie(typ: 'einnahme' | 'ausgabe'): KategorieSumme[] {
@@ -197,6 +226,7 @@ export async function ladeReport(tenantId: string, jahrParam?: number): Promise<
     .sort((a, b) => b.buchwert - a.buchwert)
   const anlagevermoegen = r2(anlagenZeilen.reduce((s, a) => s + a.buchwert, 0))
   const afaJahr = r2((anlagenRoh as AnlageRow[]).reduce((s, a) => s + afaZumStichtag(a, `${jahr}-12-31`).afaJahr, 0))
+  const afaVorjahr = r2((anlagenRoh as AnlageRow[]).reduce((s, a) => s + afaZumStichtag(a, `${jahr - 1}-12-31`).afaJahr, 0))
 
   // ── Vermögensübersicht ─────────────────────────────────────────────────────
   const kontenSumme = r2(konten.reduce((s, k) => s + k.saldo, 0))
@@ -222,11 +252,15 @@ export async function ladeReport(tenantId: string, jahrParam?: number): Promise<
       einnahmenNetto, ausgabenNetto, ausgabenAbzugsfaehig, ergebnis: r2(einnahmenNetto - ausgabenNetto),
       einnahmenVorjahr, ausgabenVorjahr, ergebnisVorjahr: r2(einnahmenVorjahr - ausgabenVorjahr),
       liquiditaet: kontenSumme, forderungenOffen, forderungenUeberfaellig, verbindlichkeitenOffen, verbindlichkeitenUeberfaellig,
+      anlagenkaeufe, afaJahr, afaGebucht,
+      ergebnisNachAfa: r2(einnahmenNetto - ausgabenNetto + anlagenkaeufe - afaJahr),
+      ergebnisNachAfaVorjahr: r2(einnahmenVorjahr - ausgabenVorjahr + anlagenkaeufeVorjahr - afaVorjahr),
+      anlagenImVerzeichnis: (anlagenRoh as AnlageRow[]).length,
     },
     vermoegen: { anlagevermoegen, afaJahr, kontenSumme, forderungen: forderungenOffen, umlaufvermoegen, verbindlichkeiten: verbindlichkeitenOffen, ustSaldoOffen, nettoVermoegen },
     einnahmenKategorien, ausgabenKategorien, monate, forderungen, verbindlichkeiten, konten, anlagen: anlagenZeilen,
     ust: { ustJahr, vstJahr, saldoJahr, uebermittelt, offen: ustSaldoOffen, uvas, zeitraum: einst.ea_uva_zeitraum, kleinunternehmer: einst.ea_kleinunternehmer },
     monatsabschluesse: [...abgeschlossen].sort((a, b) => a - b),
-    anzahlBuchungen: tx.length,
+    anzahlBuchungen: txAlle.length,
   }
 }

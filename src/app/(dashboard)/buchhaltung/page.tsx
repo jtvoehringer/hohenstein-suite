@@ -43,7 +43,7 @@ export default async function BuchhaltungPage({ searchParams }: { searchParams: 
   const bis = monat ? letzterTag(jahr, monat) : `${jahr}-12-31`
 
   let query = (supabase.from('ea_transaktionen') as any)
-    .select('id, typ, datum, beschreibung, kategorie_id, firma_id, konto_id, betrag_netto, ust_satz, ust_betrag, betrag_brutto, abzugsfaehig_pct, betrag_abzugsfaehig, belegnummer, is_locked, abgeglichen, import_quelle, notizen, ea_kategorien(name, konto_nr), konten(name), firmen(name), ea_belege(id)')
+    .select('id, typ, datum, beschreibung, kategorie_id, firma_id, konto_id, betrag_netto, ust_satz, ust_betrag, betrag_brutto, abzugsfaehig_pct, betrag_abzugsfaehig, belegnummer, is_locked, abgeglichen, import_quelle, notizen, anlage_id, ea_kategorien(name, konto_nr), konten(name), firmen(name), ea_belege(id)')
     .eq('tenant_id', tenantId)
     .gte('datum', von)
     .lte('datum', bis)
@@ -63,6 +63,13 @@ export default async function BuchhaltungPage({ searchParams }: { searchParams: 
     ladeKonten(supabase, tenantId),
   ])
   const buchungen = (buchungenRaw ?? []) as R[]
+
+  // Anlagenbezug (Migration 018): Anschaffungsbuchungen mit/ohne Eintrag im Verzeichnis, AfA-Buchungen
+  const { data: anlagenRaw } = await (supabase.from('anlagen') as any).select('id, bezeichnung, transaktion_id').eq('tenant_id', tenantId)
+  const anlageZuBuchung = new Map<string, R>()
+  const anlageById = new Map<string, R>()
+  for (const a of (anlagenRaw ?? []) as R[]) { anlageById.set(a.id, a); if (a.transaktion_id) anlageZuBuchung.set(a.transaktion_id, a) }
+  const istAnlagenkauf = (b: R) => b.typ === 'ausgabe' && !b.anlage_id && (() => { const k = Number((b.ea_kategorien as R | null)?.konto_nr); return k >= 1 && k < 1000 })()
 
   // Summen (netto) + USt/VSt (VSt anteilig abzugsfähig – wie berechne_ea_uva)
   let einnahmenNetto = 0, einnahmenBrutto = 0, ausgabenNetto = 0, ausgabenBrutto = 0, ust = 0, vst = 0
@@ -209,6 +216,14 @@ export default async function BuchhaltungPage({ searchParams }: { searchParams: 
                         {hatBeleg && (
                           <Link href={`/buchhaltung/belege/${b.ea_belege[0].id}`} title="Beleg anzeigen"><Paperclip size={13} strokeWidth={1.75} className="text-hs-tertiary hover:text-hs-blue-700 shrink-0" /></Link>
                         )}
+                        {b.anlage_id && (
+                          <Link href="/buchhaltung/anlagen" className="pill bg-hs-blue-50 text-hs-blue-700 shrink-0" title={`AfA-Buchung: ${anlageById.get(b.anlage_id)?.bezeichnung ?? 'Anlage'}`}>AfA</Link>
+                        )}
+                        {istAnlagenkauf(b) && (anlageZuBuchung.has(b.id)
+                          ? <Link href="/buchhaltung/anlagen" className="pill bg-hs-ok-bg text-hs-ok-fg shrink-0" title={`Im Anlagenverzeichnis: ${anlageZuBuchung.get(b.id)?.bezeichnung}`}>Anlage</Link>
+                          : writeOk
+                            ? <Link href={`/buchhaltung/anlagen?buchung=${b.id}`} className="pill bg-hs-warn-bg text-hs-warn-fg shrink-0" title="Anlagenkauf (Kontenklasse 0) ohne Eintrag im Anlagenverzeichnis – jetzt anlegen">Anlage anlegen</Link>
+                            : <span className="pill bg-hs-warn-bg text-hs-warn-fg shrink-0" title="Anlagenkauf ohne Eintrag im Anlagenverzeichnis">ohne Anlage</span>)}
                       </div>
                       <p className="text-xs text-hs-text-2 truncate">
                         {[b.belegnummer, (b.firmen as R | null)?.name, b.import_quelle && b.import_quelle !== 'manuell' ? IMPORT_QUELLEN[b.import_quelle] : null].filter(Boolean).join(' · ')}

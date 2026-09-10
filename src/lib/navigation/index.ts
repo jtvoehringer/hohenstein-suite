@@ -68,7 +68,7 @@ const NAV: NavGroup[] = [
       { href: '/buchhaltung/belege',          label: 'Belege',          child: true, keywords: 'scan foto upload ocr' },
       { href: '/buchhaltung/kategorien',      label: 'Kategorien',      child: true },
       { href: '/buchhaltung/dauerauftraege',  label: 'Daueraufträge',   child: true, keywords: 'wiederkehrend' },
-      { href: '/buchhaltung/anlagen',         label: 'Anlagen',         child: true, keywords: 'anlagenverzeichnis afa abschreibung anlagevermögen buchwert gwg' },
+      { href: '/buchhaltung/anlagen',         label: 'Anlagen',         child: true, keywords: 'anlagenverzeichnis anlagenspiegel afa abschreibung anlagevermögen buchwert gwg degressiv' },
       { href: '/buchhaltung/monatsabschluss', label: 'Monatsabschluss', child: true },
       { href: '/buchhaltung/uva',             label: 'UVA-Meldung',     keywords: 'umsatzsteuer finanzonline' },
       { href: '/konten',                      label: 'Konten',          keywords: 'bank kassa abstimmung' },

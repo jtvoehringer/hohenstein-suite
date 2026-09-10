@@ -163,6 +163,7 @@ export default async function BelegDetailPage({ params }: { params: Promise<{ id
                 notizen: `Beleg: ${beleg.dateiname}`,
               }}
               submitLabel="Buchung anlegen"
+              anlageWeiterleitung
               abbrechenHref="/buchhaltung/belege"
               erfolgHref="/buchhaltung?id={id}"
               onSubmit={verbuchen}

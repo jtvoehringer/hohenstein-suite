@@ -6,7 +6,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { getCurrentMembership, canAdmin, canWrite, type UserRole } from '@/lib/auth/roles'
 import { pruefeZeitraumOffen, uebernehmeStandardkategorien } from '@/lib/ea/server'
 import { GUELTIGE_UST_SAETZE, type BuchungInput } from '@/lib/ea/types'
-import type { AnlageInput } from '@/lib/ea/anlagen'
+import { ladeAnlagen, afaBuchungsStatus, type AnlageInput, type AfaMethode } from '@/lib/ea/anlagen'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
@@ -447,7 +447,7 @@ export async function loescheBelegForm(belegId: string): Promise<void> {
   if (!res.ok) console.error('loescheBeleg:', res.error)
 }
 
-// ── Anlagenverzeichnis (Migration 017) ────────────────────────────────────────
+// ── Anlagenverzeichnis (Migrationen 017/018) ──────────────────────────────────
 
 export async function speichereAnlage(input: AnlageInput, id?: string): Promise<ActionResult<{ id: string }>> {
   const { supabase, tenantId, role, userId } = await getCtx()
@@ -457,18 +457,26 @@ export async function speichereAnlage(input: AnlageInput, id?: string): Promise<
   if (!input.anschaffungsdatum || !/^\d{4}-\d{2}-\d{2}$/.test(input.anschaffungsdatum)) return { ok: false, error: 'Bitte ein gültiges Anschaffungsdatum angeben.' }
   const kosten = Number(input.anschaffungskosten)
   if (!Number.isFinite(kosten) || kosten < 0) return { ok: false, error: 'Bitte gültige Anschaffungskosten angeben.' }
-  const nd = Math.max(0, Math.min(60, Math.round(Number(input.nutzungsdauer_jahre) || 0)))
-  if (!input.sofortabschreibung && nd < 1) return { ok: false, error: 'Nutzungsdauer mindestens 1 Jahr – oder Sofortabschreibung wählen.' }
+  const methode: AfaMethode = input.methode === 'degressiv' ? 'degressiv' : input.methode === 'gwg' ? 'gwg' : 'linear'
+  const nd = methode === 'gwg' ? 1 : Math.max(1, Math.min(60, Math.round(Number(input.nutzungsdauer_jahre) || 0)))
+  if (methode !== 'gwg' && !(Number(input.nutzungsdauer_jahre) >= 1)) return { ok: false, error: 'Nutzungsdauer mindestens 1 Jahr – oder GWG-Sofortabschreibung wählen.' }
+  const satz = methode === 'degressiv' ? Number(input.degressiv_satz) : null
+  if (methode === 'degressiv' && !(satz && satz > 0 && satz <= 30)) return { ok: false, error: 'Degressiver AfA-Satz: zwischen 1 und 30 %.' }
   const restwert = Math.max(0, Number(input.restwert) || 0)
   if (restwert > kosten) return { ok: false, error: 'Der Restwert darf die Anschaffungskosten nicht übersteigen.' }
   if (input.abgang_datum && input.abgang_datum < input.anschaffungsdatum) return { ok: false, error: 'Das Abgangsdatum liegt vor der Anschaffung.' }
+  if (input.transaktion_id) {
+    const { data: tx } = await (supabase.from('ea_transaktionen') as any).select('id').eq('id', input.transaktion_id).eq('tenant_id', tenantId).maybeSingle()
+    if (!tx) return { ok: false, error: 'Die gewählte Anschaffungsbuchung wurde nicht gefunden.' }
+  }
 
   const w: R = {
-    bezeichnung, gruppe: input.gruppe || 'sonstiges',
+    bezeichnung, gruppe: input.gruppe || 'sonstiges', konto_nr: (input.konto_nr ?? '').trim() || null,
     anschaffungsdatum: input.anschaffungsdatum, anschaffungskosten: kosten,
-    nutzungsdauer_jahre: nd, sofortabschreibung: !!input.sofortabschreibung, restwert,
+    nutzungsdauer_jahre: nd, methode, degressiv_satz: satz, sofortabschreibung: methode === 'gwg', restwert,
     abgang_datum: input.abgang_datum || null,
-    abgang_erloes: input.abgang_datum && input.abgang_erloes != null && input.abgang_erloes !== ('' as unknown) ? Number(input.abgang_erloes) : null,
+    abgang_erloes: input.abgang_datum && input.abgang_erloes != null ? Number(input.abgang_erloes) : null,
+    transaktion_id: input.transaktion_id || null,
     lieferant: (input.lieferant ?? '').trim() || null,
     belegnummer: (input.belegnummer ?? '').trim() || null,
     notizen: (input.notizen ?? '').trim() || null,
@@ -477,17 +485,95 @@ export async function speichereAnlage(input: AnlageInput, id?: string): Promise<
     ? await (supabase.from('anlagen') as any).update(w).eq('id', id).eq('tenant_id', tenantId).select('id').single()
     : await (supabase.from('anlagen') as any).insert({ ...w, tenant_id: tenantId, erstellt_von: userId }).select('id').single()
   if (res.error) return { ok: false, error: (res.error as R).message }
-  revalidatePath('/buchhaltung/anlagen')
-  revalidatePath('/reporting')
+  revalidateAnlagen()
   return { ok: true, data: { id: (res.data as R).id } }
 }
 
 export async function loescheAnlage(id: string): Promise<ActionResult> {
   const { supabase, tenantId, role } = await getCtx()
   if (!canWrite(role)) return { ok: false, error: KEIN_SCHREIBRECHT }
+  const { data: afa } = await (supabase.from('ea_transaktionen') as any).select('datum').eq('anlage_id', id).eq('tenant_id', tenantId)
+  const jahre = [...new Set(((afa ?? []) as R[]).map(t => String(t.datum).slice(0, 4)))].sort()
+  if (jahre.length > 0) return { ok: false, error: `Für diese Anlage ist die AfA ${jahre.join(', ')} gebucht. Bitte zuerst die AfA-Buchungen zurücknehmen.` }
   const { error } = await (supabase.from('anlagen') as any).delete().eq('id', id).eq('tenant_id', tenantId)
   if (error) return { ok: false, error: (error as R).message }
-  revalidatePath('/buchhaltung/anlagen')
-  revalidatePath('/reporting')
+  revalidateAnlagen()
   return { ok: true }
+}
+
+function revalidateAnlagen() {
+  revalidatePath('/buchhaltung/anlagen')
+  revalidatePath('/buchhaltung/anlagen/spiegel')
+  revalidatePath('/buchhaltung')
+  revalidatePath('/reporting')
+}
+
+/** Kategorie „Abschreibung (AfA)“ des Mandanten (Migration 018) */
+async function afaKategorieId(supabase: any, tenantId: string): Promise<string | null> {
+  const { data } = await (supabase.from('ea_kategorien') as any)
+    .select('id').eq('tenant_id', tenantId).eq('name', 'Abschreibung (AfA)').limit(1).maybeSingle()
+  return ((data as R | null)?.id as string | undefined) ?? null
+}
+
+/**
+ * AfA eines Jahres buchen: je Anlage eine Ausgabe „Abschreibung (AfA)“ per 31.12.,
+ * 0 % USt, ohne Zahlungskonto (nicht zahlungswirksam). Bestehende abweichende
+ * Buchungen des Jahres werden ersetzt; gesperrte bleiben unangetastet.
+ */
+export async function bucheAfa(jahr: number): Promise<ActionResult<{ gebucht: number }>> {
+  const { supabase, tenantId, role, userId } = await getCtx()
+  if (!canWrite(role)) return { ok: false, error: KEIN_SCHREIBRECHT }
+  if (!Number.isInteger(jahr) || jahr < 2000 || jahr > 2100) return { ok: false, error: 'Ungültiges Jahr.' }
+  const stichtag = `${jahr}-12-31`
+  const offen = await pruefeZeitraumOffen(supabase, tenantId, stichtag)
+  if (!offen.offen) return { ok: false, error: offen.grund ?? `Dezember ${jahr} ist abgeschlossen – bitte den Monat zuerst öffnen.` }
+  const katId = await afaKategorieId(supabase, tenantId)
+  if (!katId) return { ok: false, error: 'Die Kategorie „Abschreibung (AfA)“ fehlt – bitte Migration 018 einspielen.' }
+
+  const [anlagen, { data: bRaw }] = await Promise.all([
+    ladeAnlagen(supabase, tenantId),
+    (supabase.from('ea_transaktionen') as any).select('id, anlage_id, betrag_netto, datum, is_locked')
+      .eq('tenant_id', tenantId).not('anlage_id', 'is', null).gte('datum', `${jahr}-01-01`).lte('datum', stichtag),
+  ])
+  const status = afaBuchungsStatus(anlagen, jahr, ((bRaw ?? []) as R[]).map(b => ({ id: b.id, anlage_id: b.anlage_id, betrag_netto: Number(b.betrag_netto), datum: b.datum, is_locked: !!b.is_locked })))
+  const zuBuchen = status.zeilen.filter(z => z.status !== 'gebucht' && !z.gesperrt)
+  if (zuBuchen.length === 0) return { ok: true, data: { gebucht: 0 } }
+
+  const alt = zuBuchen.filter(z => z.buchungId).map(z => z.buchungId as string)
+  if (alt.length > 0) {
+    const { error } = await (supabase.from('ea_transaktionen') as any).delete().in('id', alt).eq('tenant_id', tenantId)
+    if (error) return { ok: false, error: (error as R).message }
+  }
+  const neu = zuBuchen.filter(z => z.soll > 0).map(z => ({
+    tenant_id: tenantId, typ: 'ausgabe', datum: stichtag,
+    beschreibung: `AfA ${jahr}: ${z.anlage.bezeichnung}`,
+    kategorie_id: katId, konto_id: null, betrag_netto: z.soll, ust_satz: 0, abzugsfaehig_pct: 100,
+    import_quelle: 'manuell', anlage_id: z.anlage.id, erstellt_von: userId,
+    notizen: 'Abschreibung laut Anlagenverzeichnis – nicht zahlungswirksam',
+  }))
+  if (neu.length > 0) {
+    const { error } = await (supabase.from('ea_transaktionen') as any).insert(neu)
+    if (error) return { ok: false, error: (error as R).message }
+  }
+  revalidateBuchhaltung(); revalidateAnlagen()
+  return { ok: true, data: { gebucht: neu.length } }
+}
+
+/** Alle (nicht gesperrten) AfA-Buchungen eines Jahres löschen – das Verzeichnis bleibt unverändert. */
+export async function afaZuruecknehmen(jahr: number): Promise<ActionResult<{ geloescht: number }>> {
+  const { supabase, tenantId, role } = await getCtx()
+  if (!canWrite(role)) return { ok: false, error: KEIN_SCHREIBRECHT }
+  const stichtag = `${jahr}-12-31`
+  const offen = await pruefeZeitraumOffen(supabase, tenantId, stichtag)
+  if (!offen.offen) return { ok: false, error: offen.grund ?? `Dezember ${jahr} ist abgeschlossen.` }
+  const { data: bRaw } = await (supabase.from('ea_transaktionen') as any).select('id')
+    .eq('tenant_id', tenantId).not('anlage_id', 'is', null).eq('is_locked', false)
+    .gte('datum', `${jahr}-01-01`).lte('datum', stichtag)
+  const ids = ((bRaw ?? []) as R[]).map(b => b.id as string)
+  if (ids.length > 0) {
+    const { error } = await (supabase.from('ea_transaktionen') as any).delete().in('id', ids).eq('tenant_id', tenantId)
+    if (error) return { ok: false, error: (error as R).message }
+  }
+  revalidateBuchhaltung(); revalidateAnlagen()
+  return { ok: true, data: { geloescht: ids.length } }
 }
