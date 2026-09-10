@@ -7,6 +7,7 @@ import {
   Upload, Download, Trash2, Pencil, ChevronRight, Search, Loader2, X, Link2, FolderInput, HardDrive, Paperclip,
 } from 'lucide-react'
 import { fmtDatum } from '@/lib/format'
+import { dateiHochladen } from '@/lib/datencenter/upload'
 import { createOrdner, renameOrdner, deleteOrdner, moveDatei, renameDatei } from './actions'
 
 export type AblageOrdner = { id: string; parent_id: string | null; name: string }
@@ -109,16 +110,15 @@ export default function DatencenterClient({
     e.target.value = ''
     if (files.length === 0) return
     setFehler(null); setUploading(files.length)
+    const fehlgeschlagen: string[] = []
     for (const f of files) {
-      const fd = new FormData()
-      fd.set('file', f)
-      if (aktuellerOrdnerId) fd.set('ordner_id', aktuellerOrdnerId)
       try {
-        const res = await fetch('/api/datencenter/datei', { method: 'POST', body: fd })
-        if (!res.ok) { const j = await res.json().catch(() => ({})); setFehler(`${f.name}: ${j.error ?? 'Upload fehlgeschlagen'}`) }
-      } catch (err) { setFehler(`${f.name}: ${err instanceof Error ? err.message : 'Upload fehlgeschlagen'}`) }
+        const res = await dateiHochladen(f, { ordner_id: aktuellerOrdnerId })
+        if (!res.ok) fehlgeschlagen.push(`${f.name}: ${res.error}`)
+      } catch (err) { fehlgeschlagen.push(`${f.name}: ${err instanceof Error ? err.message : 'Upload fehlgeschlagen'}`) }
       setUploading(n => n - 1)
     }
+    if (fehlgeschlagen.length > 0) setFehler(fehlgeschlagen.join(' · '))
     router.refresh()
   }
 

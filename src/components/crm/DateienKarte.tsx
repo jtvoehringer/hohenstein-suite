@@ -1,7 +1,7 @@
 'use client'
 
 // ── Dateien an Firma/Kontakt (Ablage im Datencenter, Bucket datencenter) ──────
-// Upload/Download/Löschen über /api/datencenter/datei; die Dateien erscheinen
+// Upload direkt in den Bucket (lib/datencenter/upload), Download/Löschen über /api/datencenter/datei; die Dateien erscheinen
 // im Datencenter unter „CRM-Anhänge".
 
 import { useRef, useState } from 'react'
@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { Paperclip, Upload, Download, Trash2, Loader2, X } from 'lucide-react'
 import { fmtDatum } from '@/lib/format'
 import { DateiTypIcon, fmtBytes } from '@/app/(dashboard)/datencenter/DatencenterClient'
+import { dateiHochladen } from '@/lib/datencenter/upload'
 
 export type KarteDatei = {
   id: string
@@ -36,17 +37,15 @@ export default function DateienKarte({
     e.target.value = ''
     if (files.length === 0) return
     setFehler(null); setUploading(files.length)
+    const fehlgeschlagen: string[] = []
     for (const f of files) {
-      const fd = new FormData()
-      fd.set('file', f)
-      if (firmaId)   fd.set('firma_id', firmaId)
-      if (kontaktId) fd.set('kontakt_id', kontaktId)
       try {
-        const res = await fetch('/api/datencenter/datei', { method: 'POST', body: fd })
-        if (!res.ok) { const j = await res.json().catch(() => ({})); setFehler(`${f.name}: ${j.error ?? 'Upload fehlgeschlagen'}`) }
-      } catch (err) { setFehler(`${f.name}: ${err instanceof Error ? err.message : 'Upload fehlgeschlagen'}`) }
+        const res = await dateiHochladen(f, { firma_id: firmaId, kontakt_id: kontaktId })
+        if (!res.ok) fehlgeschlagen.push(`${f.name}: ${res.error}`)
+      } catch (err) { fehlgeschlagen.push(`${f.name}: ${err instanceof Error ? err.message : 'Upload fehlgeschlagen'}`) }
       setUploading(n => n - 1)
     }
+    if (fehlgeschlagen.length > 0) setFehler(fehlgeschlagen.join(' · '))
     router.refresh()
   }
 

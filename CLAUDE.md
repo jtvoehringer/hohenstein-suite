@@ -37,7 +37,9 @@
   31.12. gebucht, im laufenden Jahr gilt der Buchwert 1.1. Berechnung in `src/lib/ea/anlagen.ts`.
 - Datencenter (Migration 016): Tab /datencenter mit Ordnerbaum (`ablage_ordner`) + Dateien (`ablage_dateien`, Bucket `datencenter`, 50 MB);
   Datei-Anhänge an Firmen/Kontakten laufen über dieselbe Ablage (firma_id/kontakt_id, Karte „Dateien" auf den Detailseiten,
-  im Datencenter unter „CRM-Anhänge"); Termine nutzen weiter `aktivitaet_dokumente`. Upload/Download: /api/datencenter/datei.
+  im Datencenter unter „CRM-Anhänge"); Termine nutzen weiter `aktivitaet_dokumente`. Upload geht DIREKT aus dem Browser in den Bucket
+  (signierte Upload-URL, `src/lib/datencenter/upload.ts`, zweistufige JSON-API /api/datencenter/datei start/fertig) – Vercel-Functions
+  nehmen nur 4,5 MB Body an; Download/Löschen über /api/datencenter/datei/[id]. Bucket ohne MIME-Allowlist (Migration 019), API sperrt ausführbare Dateien.
 - Gemeinsame Mailbox (Migration 015): zusätzlich zu den persönlichen Postfächern eine team-weite Verbindung je Mandant
   (`user_email_connections.gemeinsam`, z. B. office@hohenstein-partner.at); aktive Mailbox wählt das Cookie `hs_mail_konto`
   (Umschalter im Posteingang neben der Adresse), Einrichtung unter Nachrichten → E-Mail-Konto → Gemeinsame Mailbox.
