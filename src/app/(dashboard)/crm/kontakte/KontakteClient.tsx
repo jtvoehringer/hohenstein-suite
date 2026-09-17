@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Download, Search, Upload, Camera } from 'lucide-react'
+import { Plus, Download, Search, Upload, Camera, Trash2, KanbanSquare, X, CheckSquare } from 'lucide-react'
 import { SEGMENTE } from '@/lib/crm/types'
 import type { KontaktRow } from '@/lib/crm/types'
 import ClickableTableRow from '@/components/ui/ClickableTableRow'
@@ -12,6 +12,8 @@ import Modal from '@/components/crm/Modal'
 import KontaktForm, { type FirmaOption } from '@/components/crm/KontaktForm'
 import { SegmentPill, LeadPill } from '@/components/crm/Pills'
 import { fmtTelefon } from '@/components/crm/crmUtils'
+import SammelChanceForm from '@/components/crm/SammelChanceForm'
+import { deleteKontakte } from '../actions'
 
 type LeadFilter = 'alle' | 'lead' | 'kunde'
 
@@ -32,6 +34,11 @@ export default function KontakteClient({
   const [segment, setSegment]     = useState<string>(initialSegment && SEGMENTE.some(s => s.value === initialSegment) ? initialSegment : 'alle')
   const [leadFilter, setLeadFilter] = useState<LeadFilter>(initialFilter)
   const [buchstabe, setBuchstabe] = useState<string>('')
+  // Sammelaktionen: Auswahl per Klickbox
+  const [auswahl, setAuswahl] = useState<Set<string>>(new Set())
+  const [showPipeline, setShowPipeline] = useState(false)
+  const [hinweis, setHinweis] = useState<React.ReactNode>(null)
+  const [pending, startTransition] = useTransition()
 
   const gefiltert = useMemo(() => {
     const q = suche.trim().toLowerCase()
@@ -51,6 +58,35 @@ export default function KontakteClient({
   const anzahlKunden = kontakte.length - anzahlLeads
   const chip = (aktiv: boolean) =>
     `px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${aktiv ? 'bg-hs-teal text-white' : 'bg-hs-bg text-hs-text-1 hover:text-hs-text'}`
+
+  const kontaktName = (k: KontaktRow) => [k.vorname, k.nachname].filter(Boolean).join(' ') || k.nachname || 'Kontakt'
+  const gefiltertIds = useMemo(() => gefiltert.map(k => k.id), [gefiltert])
+  const alleGefiltertGewaehlt = gefiltert.length > 0 && gefiltertIds.every(id => auswahl.has(id))
+  const ausgewaehlte = useMemo(() => kontakte.filter(k => auswahl.has(k.id)), [kontakte, auswahl])
+  function toggleAuswahl(id: string) {
+    setAuswahl(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  }
+  function toggleAlle() {
+    setAuswahl(prev => {
+      const n = new Set(prev)
+      if (alleGefiltertGewaehlt) gefiltertIds.forEach(id => n.delete(id)); else gefiltertIds.forEach(id => n.add(id))
+      return n
+    })
+  }
+  function sammelLoeschen() {
+    const n = ausgewaehlte.length
+    if (n === 0) return
+    const namen = ausgewaehlte.slice(0, 5).map(kontaktName).join(', ') + (n > 5 ? ` … (+${n - 5})` : '')
+    if (!confirm(`${n} ${n === 1 ? 'Kontakt' : 'Kontakte'} endgültig löschen?\n${namen}\n\nFirmen bleiben erhalten; Termine und Chancen verlieren die Kontaktzuordnung.`)) return
+    setHinweis(null)
+    startTransition(async () => {
+      const res = await deleteKontakte([...auswahl])
+      if (res?.error) { setHinweis(`Löschen fehlgeschlagen: ${res.error}`); return }
+      setHinweis(`${res.anzahl ?? n} ${res.anzahl === 1 ? 'Kontakt' : 'Kontakte'} gelöscht.`)
+      setAuswahl(new Set())
+      router.refresh()
+    })
+  }
 
   function schliesseNeu() {
     setShowNeu(false)
@@ -109,6 +145,32 @@ export default function KontakteClient({
         </div>
       </div>
 
+      {hinweis && (
+        <div className="flex items-center justify-between gap-2 text-sm rounded-lg px-3 py-2 bg-hs-blue-50 text-hs-blue-700">
+          <span>{hinweis}</span>
+          <button type="button" onClick={() => setHinweis(null)} className="p-0.5 hover:text-hs-text" aria-label="Hinweis schließen"><X size={14} /></button>
+        </div>
+      )}
+      {writeOk && auswahl.size > 0 && (
+        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-hs-blue-300 bg-white shadow-sm px-3 py-2 text-sm">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-hs-text">
+            <CheckSquare size={15} strokeWidth={2} className="text-hs-teal" />
+            {auswahl.size} {auswahl.size === 1 ? 'Kontakt' : 'Kontakte'} ausgewählt
+          </span>
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
+            <button type="button" onClick={() => setShowPipeline(true)} disabled={pending} className="btn-primary !py-1.5" title="Für jeden ausgewählten Kontakt eine Verkaufschance anlegen (z. B. Kampagne)">
+              <KanbanSquare size={15} strokeWidth={1.75} /> Pipeline
+            </button>
+            <button type="button" onClick={sammelLoeschen} disabled={pending} className="btn-danger !py-1.5">
+              <Trash2 size={15} strokeWidth={1.75} /> Löschen
+            </button>
+            <button type="button" onClick={() => setAuswahl(new Set())} className="btn-secondary !py-1.5">
+              <X size={15} strokeWidth={1.75} /> Auswahl aufheben
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tabelle */}
       <div className="bg-white rounded-xl border border-hs-line overflow-hidden">
         {gefiltert.length === 0 ? (
@@ -125,6 +187,12 @@ export default function KontakteClient({
             <table className="w-full text-sm">
               <thead className="table-head">
                 <tr>
+                  {writeOk && (
+                    <th className="px-3 py-2.5 w-8">
+                      <input type="checkbox" checked={alleGefiltertGewaehlt} onChange={toggleAlle} className="accent-hs-teal cursor-pointer"
+                        aria-label="Alle angezeigten Kontakte auswählen" title={alleGefiltertGewaehlt ? 'Auswahl der angezeigten Kontakte aufheben' : `Alle ${gefiltert.length} angezeigten Kontakte auswählen`} />
+                    </th>
+                  )}
                   <th className="text-left px-4 py-2.5">Name</th>
                   <th className="text-left px-4 py-2.5">Firma</th>
                   <th className="text-left px-4 py-2.5">Segment</th>
@@ -135,7 +203,12 @@ export default function KontakteClient({
               </thead>
               <tbody className="divide-y divide-hs-line">
                 {gefiltert.map(k => (
-                  <ClickableTableRow key={k.id} href={`/crm/kontakte/${k.id}`} className="hover:bg-hs-bg/70 transition-colors">
+                  <ClickableTableRow key={k.id} href={`/crm/kontakte/${k.id}`} className={`transition-colors ${auswahl.has(k.id) ? 'bg-hs-blue-50/60' : 'hover:bg-hs-bg/70'}`}>
+                    {writeOk && (
+                      <td className="px-3 py-2.5 w-8" onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={auswahl.has(k.id)} onChange={() => toggleAuswahl(k.id)} className="accent-hs-teal cursor-pointer" aria-label={`${kontaktName(k)} auswählen`} />
+                      </td>
+                    )}
                     <td className="px-4 py-2.5">
                       <div className="font-medium text-hs-text">{k.nachname}{k.vorname ? `, ${k.vorname}` : ''}</div>
                       <div className="text-xs text-hs-text-2">
@@ -170,9 +243,28 @@ export default function KontakteClient({
         {gefiltert.length > 0 && (
           <div className="px-4 py-2 border-t border-hs-line text-xs text-hs-text-2">
             {gefiltert.length} von {kontakte.length} {kontakte.length === 1 ? 'Kontakt' : 'Kontakten'}
+            {auswahl.size > 0 && <> · {auswahl.size} ausgewählt</>}
           </div>
         )}
       </div>
+
+      <Modal open={showPipeline} onClose={() => setShowPipeline(false)} title="Chancen anlegen" subtitle="Für jeden ausgewählten Kontakt wird eine eigene Verkaufschance in der Pipeline angelegt." width="max-w-2xl">
+        {showPipeline && (
+          <SammelChanceForm
+            ziel="kontakte"
+            firmen={ausgewaehlte.map(k => ({ id: k.id, name: `${kontaktName(k)}${k.firma_name ? ` (${k.firma_name})` : ''}` }))}
+            onDone={({ angelegt, uebersprungen }) => {
+              setShowPipeline(false)
+              setHinweis(<>
+                {angelegt} {angelegt === 1 ? 'Chance' : 'Chancen'} angelegt{uebersprungen > 0 ? `, ${uebersprungen} ${uebersprungen === 1 ? 'Kontakt' : 'Kontakte'} übersprungen (bereits offene Chance)` : ''}.{' '}
+                <Link href="/crm/pipeline" className="font-semibold underline underline-offset-2">Zur Pipeline →</Link>
+              </>)
+              setAuswahl(new Set())
+            }}
+            onCancel={() => setShowPipeline(false)}
+          />
+        )}
+      </Modal>
 
       <Modal open={showNeu} onClose={schliesseNeu} title="Neuer Kontakt" subtitle="Die Kundennummer wird automatisch vergeben." width="max-w-2xl">
         <KontaktForm

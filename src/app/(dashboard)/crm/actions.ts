@@ -205,17 +205,17 @@ export async function deleteFirma(id: string): Promise<ActionResult> {
   } catch (err) { return fehler(err) }
 }
 
-/** Mehrere Firmen auf einmal löschen (Sammelaktion in der Firmen-Liste). */
-export async function deleteFirmen(ids: string[]): Promise<ActionResult & { anzahl?: number }> {
+/** Sammelaktion: mehrere Datensätze einer CRM-Tabelle löschen. */
+async function sammelLoeschen(tabelle: 'firmen' | 'kontakte', ids: string[]): Promise<ActionResult & { anzahl?: number }> {
   try {
     const { tenantId } = await requireWrite()
     const supabase = await createSupabaseServerClient()
     const liste = [...new Set(ids)].filter(Boolean)
-    if (liste.length === 0) return { error: 'Keine Firmen ausgewählt.' }
+    if (liste.length === 0) return { error: 'Nichts ausgewählt.' }
     let anzahl = 0
     for (let i = 0; i < liste.length; i += 200) {
       const teil = liste.slice(i, i + 200)
-      const { data, error } = await (supabase.from('firmen') as any)
+      const { data, error } = await (supabase.from(tabelle) as any)
         .delete().eq('tenant_id', tenantId).in('id', teil).select('id')
       if (error) return { error: (error as R).message }
       anzahl += ((data ?? []) as R[]).length
@@ -224,6 +224,11 @@ export async function deleteFirmen(ids: string[]): Promise<ActionResult & { anza
     return { anzahl }
   } catch (err) { return fehler(err) }
 }
+
+/** Mehrere Firmen auf einmal löschen (Sammelaktion in der Firmen-Liste). */
+export async function deleteFirmen(ids: string[]) { return sammelLoeschen('firmen', ids) }
+/** Mehrere Kontakte auf einmal löschen (Sammelaktion in der Kontakte-Liste). */
+export async function deleteKontakte(ids: string[]) { return sammelLoeschen('kontakte', ids) }
 
 /**
  * Sammelaktion: für jede ausgewählte Firma eine Verkaufschance anlegen (z. B. Kampagne).
@@ -273,6 +278,58 @@ export async function createPipelineEintraegeFuerFirmen(
     if (error) return { error: (error as R).message }
     const verlauf = ((neu ?? []) as R[]).map(e => ({
       pipeline_id: e.id, stufe_von: null, stufe_nach: basis.stufe, geaendert_von: userId, notizen: 'Angelegt (Sammelaktion Firmen)',
+    }))
+    if (verlauf.length > 0) {
+      const { error: vErr } = await (supabase.from('pipeline_verlauf') as any).insert(verlauf)
+      if (vErr) console.error('pipeline_verlauf:', (vErr as R).message)
+    }
+    revalidateCrm()
+    return { angelegt: verlauf.length, uebersprungen }
+  } catch (err) { return fehler(err) }
+}
+
+/**
+ * Sammelaktion aus der Kontakte-Liste: je ausgewähltem Kontakt eine Verkaufschance
+ * (Kontakt + dessen Firma). Optional Kontakte überspringen, die bereits eine offene Chance haben.
+ */
+export async function createPipelineEintraegeFuerKontakte(
+  kontaktIds: string[], fd: FormData,
+): Promise<ActionResult & { angelegt?: number; uebersprungen?: number }> {
+  try {
+    const { tenantId, userId } = await requireWrite()
+    const supabase = await createSupabaseServerClient()
+    const ids = [...new Set(kontaktIds)].filter(Boolean)
+    if (ids.length === 0) return { error: 'Keine Kontakte ausgewählt.' }
+    const basis = pipelinePayload(fd)
+    if (!basis.titel) return { error: 'Titel ist ein Pflichtfeld.' }
+    const nurOhneOffene = bool(fd, 'nur_ohne_offene')
+
+    const [{ data: kontakte, error: kErr }, { data: offene }] = await Promise.all([
+      (supabase.from('kontakte') as any).select('id, vorname, nachname, firma_id, firmen(name)').eq('tenant_id', tenantId).in('id', ids),
+      nurOhneOffene
+        ? (supabase.from('pipeline_eintraege') as any).select('kontakt_id').eq('tenant_id', tenantId).eq('erledigt', false).in('kontakt_id', ids)
+        : Promise.resolve({ data: [] }),
+    ])
+    if (kErr) return { error: (kErr as R).message }
+    const hatOffene = new Set(((offene ?? []) as R[]).map(o => o.kontakt_id as string))
+
+    const zeilen: R[] = []
+    let uebersprungen = 0
+    for (const k of (kontakte ?? []) as R[]) {
+      if (hatOffene.has(k.id)) { uebersprungen++; continue }
+      const name = [k.vorname, k.nachname].filter(Boolean).join(' ') || 'Kontakt'
+      const firma = (k.firmen as R | null)?.name as string | undefined
+      zeilen.push({
+        ...basis, tenant_id: tenantId, kontakt_id: k.id, firma_id: k.firma_id ?? null,
+        titel: `${basis.titel} – ${name}${firma ? ` (${firma})` : ''}`,
+      })
+    }
+    if (zeilen.length === 0) return { angelegt: 0, uebersprungen }
+
+    const { data: neu, error } = await (supabase.from('pipeline_eintraege') as any).insert(zeilen).select('id')
+    if (error) return { error: (error as R).message }
+    const verlauf = ((neu ?? []) as R[]).map(e => ({
+      pipeline_id: e.id, stufe_von: null, stufe_nach: basis.stufe, geaendert_von: userId, notizen: 'Angelegt (Sammelaktion Kontakte)',
     }))
     if (verlauf.length > 0) {
       const { error: vErr } = await (supabase.from('pipeline_verlauf') as any).insert(verlauf)
