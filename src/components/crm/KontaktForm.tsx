@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { SEGMENTE } from '@/lib/crm/types'
-import type { KontaktRow } from '@/lib/crm/types'
+import type { KontaktRow, ProduktEintrag } from '@/lib/crm/types'
+import ProduktkundeFelder from './ProduktkundeFelder'
 import { createKontakt, updateKontakt } from '@/app/(dashboard)/crm/actions'
 import { LAENDER, VORWAHLEN, SPRACHEN } from './crmUtils'
 
@@ -28,12 +29,15 @@ export default function KontaktForm({
   const [isLead, setIsLead]   = useState(initial?.is_lead ?? true)
   const [land, setLand]       = useState(initial?.land ?? 'AT')
   const [fehler, setFehler]   = useState<string | null>(null)
+  const [produkt, setProdukt] = useState<{ produktkunde: boolean; produkte: ProduktEintrag[] }>({ produktkunde: initial?.produktkunde ?? false, produkte: initial?.produkte ?? [] })
   const v = (f: keyof KontaktRow) => (initial?.[f] ?? '') as string
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     fd.set('is_lead', isLead ? 'true' : 'false')
+    fd.set('produktkunde', produkt.produktkunde ? 'true' : 'false')
+    fd.set('produkte', JSON.stringify(produkt.produkte))
     setFehler(null)
     startTransition(async () => {
       const res = initial ? await updateKontakt(initial.id, fd) : await createKontakt(fd)
@@ -140,6 +144,9 @@ export default function KontaktForm({
         <div className="sm:col-span-2">
           <label className="form-label">Interner Ansprechpartner</label>
           <input name="ansprechpartner_intern" defaultValue={v('ansprechpartner_intern')} placeholder="Wer betreut diesen Kontakt bei uns?" className="input" />
+        </div>
+        <div className="sm:col-span-2">
+          <ProduktkundeFelder produktkunde={produkt.produktkunde} produkte={produkt.produkte} onChange={setProdukt} />
         </div>
         <div className="sm:col-span-2">
           <label className="form-label">Notizen</label>

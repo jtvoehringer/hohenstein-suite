@@ -17,7 +17,7 @@ import AktivitaetKarte from '@/components/crm/AktivitaetKarte'
 import PipelineForm from '@/components/crm/PipelineForm'
 import PipelineListe from '@/components/crm/PipelineListe'
 import DateienKarte, { type KarteDatei } from '@/components/crm/DateienKarte'
-import { SegmentPill, LeadPill } from '@/components/crm/Pills'
+import { SegmentPill, LeadPill, ProduktPills } from '@/components/crm/Pills'
 import { fmtTelefon, telHref, mapsHref, type AktivitaetMitDokumenten, type PipelineKurz } from '@/components/crm/crmUtils'
 import { LAENDER, SPRACHEN } from '@/components/crm/crmUtils'
 
@@ -92,6 +92,7 @@ export default function KontaktDetailClient({
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <SegmentPill segment={kontakt.segment} />
             <LeadPill isLead={kontakt.is_lead} />
+            <ProduktPills produktkunde={kontakt.produktkunde} produkte={kontakt.produkte} />
           </div>
         </div>
         {writeOk && (

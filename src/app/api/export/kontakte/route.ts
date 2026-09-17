@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership } from '@/lib/auth/roles'
 import { toCSV } from '@/lib/utils/csv'
 import { alleZeilen } from '@/lib/supabase/alleZeilen'
-import { segmentLabel } from '@/lib/crm/types'
+import { segmentLabel, parseProdukte, produkteText } from '@/lib/crm/types'
 import { fmtDatum, heuteIso } from '@/lib/format'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +18,7 @@ export async function GET() {
 
   const supabase = await createSupabaseServerClient()
   const data = await alleZeilen(() => (supabase.from('kontakte') as any)
-    .select('kundennummer, vorname, nachname, segment, firmen:firma_id(name), position, email, telefon_vorwahl, telefon, mobil_vorwahl, mobil, strasse, plz, ort, land, geburtsdatum, sprache, ansprechpartner_intern, is_lead, notizen, erstellt_am')
+    .select('kundennummer, vorname, nachname, segment, firmen:firma_id(name), position, email, telefon_vorwahl, telefon, mobil_vorwahl, mobil, strasse, plz, ort, land, geburtsdatum, sprache, ansprechpartner_intern, is_lead, produktkunde, produkte, notizen, erstellt_am')
     .eq('tenant_id', membership.tenantId).eq('aktiv', true)
     .order('nachname').order('vorname').order('kundennummer'))
 
@@ -40,6 +40,8 @@ export async function GET() {
     sprache:       r.sprache,
     ansprechpartner_intern: r.ansprechpartner_intern,
     status:        r.is_lead ? 'Lead' : 'Kunde',
+    produktkunde:  r.produktkunde ? 'Ja' : 'Nein',
+    produkte:      r.produktkunde ? produkteText(parseProdukte(r.produkte)) : '',
     notizen:       r.notizen,
     erstellt_am:   fmtDatum(r.erstellt_am),
   }))
@@ -62,6 +64,8 @@ export async function GET() {
     { key: 'sprache',      header: 'Sprache' },
     { key: 'ansprechpartner_intern', header: 'Interner Ansprechpartner' },
     { key: 'status',       header: 'Status' },
+    { key: 'produktkunde', header: 'Produktkunde' },
+    { key: 'produkte',     header: 'Produkte (Kundennummer)' },
     { key: 'notizen',      header: 'Notizen' },
     { key: 'erstellt_am',  header: 'Angelegt am' },
   ])

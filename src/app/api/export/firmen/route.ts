@@ -4,7 +4,7 @@ import { getCurrentMembership } from '@/lib/auth/roles'
 import { toCSV } from '@/lib/utils/csv'
 import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import { ladeMandantMitglieder, mitgliederMap } from '@/lib/aufgaben/mitglieder'
-import { segmentLabel } from '@/lib/crm/types'
+import { segmentLabel, parseProdukte, produkteText } from '@/lib/crm/types'
 import { fmtDatum, heuteIso } from '@/lib/format'
 
 export const dynamic = 'force-dynamic'
@@ -20,7 +20,7 @@ export async function GET() {
   const supabase = await createSupabaseServerClient()
   const [data, mitglieder] = await Promise.all([
     alleZeilen(() => (supabase.from('firmen') as any)
-      .select('kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, account_manager, notizen, erstellt_am')
+      .select('kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, account_manager, produktkunde, produkte, notizen, erstellt_am')
       .eq('tenant_id', membership.tenantId).eq('aktiv', true)
       .order('name').order('kundennummer')),
     ladeMandantMitglieder(membership.tenantId),
@@ -48,6 +48,8 @@ export async function GET() {
     lieferant:         ja(r.ist_lieferant),
     quelle:            r.quelle,
     account_manager:   r.account_manager ? (amName.get(r.account_manager) ?? '') : '',
+    produktkunde:      ja(r.produktkunde),
+    produkte:          r.produktkunde ? produkteText(parseProdukte(r.produkte)) : '',
     notizen:           r.notizen,
     erstellt_am:       fmtDatum(r.erstellt_am),
   }))
@@ -72,6 +74,8 @@ export async function GET() {
     { key: 'lieferant',         header: 'Lieferant' },
     { key: 'quelle',            header: 'Quelle' },
     { key: 'account_manager',   header: 'Account Manager' },
+    { key: 'produktkunde',      header: 'Produktkunde' },
+    { key: 'produkte',          header: 'Produkte (Kundennummer)' },
     { key: 'notizen',           header: 'Notizen' },
     { key: 'erstellt_am',       header: 'Angelegt am' },
   ])

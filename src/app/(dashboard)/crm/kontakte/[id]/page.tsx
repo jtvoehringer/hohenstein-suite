@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import type { KontaktRow } from '@/lib/crm/types'
-import { kontaktName } from '@/lib/crm/types'
+import { kontaktName, parseProdukte } from '@/lib/crm/types'
 import type { AktivitaetMitDokumenten, PipelineKurz } from '@/components/crm/crmUtils'
 import KontaktDetailClient from './KontaktDetailClient'
 
@@ -33,7 +33,7 @@ export default async function KontaktDetailPage({ params }: { params: Promise<{ 
 
   const [{ data: kRaw }, { data: aRaw }, { data: pRaw }, { data: fRaw }, { data: kfRaw }] = await Promise.all([
     (supabase.from('kontakte') as any)
-      .select('id, kundennummer, vorname, nachname, segment, firma_id, firmen:firma_id(name, segment), position, email, telefon_vorwahl, telefon, mobil_vorwahl, mobil, strasse, plz, ort, land, geburtsdatum, sprache, ansprechpartner_intern, is_lead, notizen, aktiv, erstellt_am')
+      .select('id, kundennummer, vorname, nachname, segment, firma_id, firmen:firma_id(name, segment), position, email, telefon_vorwahl, telefon, mobil_vorwahl, mobil, strasse, plz, ort, land, geburtsdatum, sprache, ansprechpartner_intern, is_lead, produktkunde, produkte, notizen, aktiv, erstellt_am')
       .eq('id', id).eq('tenant_id', tenantId).maybeSingle(),
     (supabase.from('aktivitaeten') as any)
       .select('id, kontakt_id, firma_id, art, betreff, beschreibung, datum, bis_datum, ganztags, uhrzeit_von, uhrzeit_bis, erledigt, faellig_am, ist_privat, erstellt_von, erstellt_am, email_von, email_von_name, email_an, email_body, aktivitaet_dokumente(id, dateiname, dateityp, groesse_bytes, erstellt_am)')
@@ -70,7 +70,7 @@ export default async function KontaktDetailPage({ params }: { params: Promise<{ 
     strasse: k.strasse ?? null, plz: k.plz ?? null, ort: k.ort ?? null, land: k.land ?? 'AT',
     geburtsdatum: k.geburtsdatum ?? null, sprache: k.sprache ?? 'de',
     ansprechpartner_intern: k.ansprechpartner_intern ?? null,
-    is_lead: !!k.is_lead, notizen: k.notizen ?? null, aktiv: k.aktiv ?? true, erstellt_am: k.erstellt_am,
+    is_lead: !!k.is_lead, produktkunde: !!k.produktkunde, produkte: parseProdukte(k.produkte), notizen: k.notizen ?? null, aktiv: k.aktiv ?? true, erstellt_am: k.erstellt_am,
   }
   const firmaSegment: string | null = (k.firmen as R | null)?.segment ?? null
 

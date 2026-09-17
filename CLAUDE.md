@@ -11,7 +11,9 @@
   und `account_manager` (uuid → auth.users, Migration 013): betreuendes Team-Mitglied, Zuordnung auf der Firmen-Detailseite,
   Filter in der Firmen-Liste, Spalte im CSV-Export; Auswahl über RPC `mandant_mitglieder`; Sammelaktionen in Firmen- und Kontakte-Liste:
   Klickboxen + Leiste „Pipeline" (je Auswahl eine Chance „<Kampagne> – <Name>", `createPipelineEintraegeFuerFirmen/-Kontakte`,
-  `SammelChanceForm`) und „Löschen" (`deleteFirmen/deleteKontakte`)) · E-Mail (IMAP) · E&A-Rechnung · Fakturierung (Angebote/Rechnungen/Gutschriften, Offene Posten) · Aufgaben · Verwaltung der software:112-Demo. Referenzsystem: software:112 (Ordner „ERP Software112").
+  `SammelChanceForm`) und „Löschen" (`deleteFirmen/deleteKontakte`); Produktkunde (Migration 020) auf Firmen und Kontakten:
+  Toggle `produktkunde` + `produkte` jsonb [{produkt: software112|webpage|weinshop, kundennummer}] – Formularblock `ProduktkundeFelder`,
+  Pills `ProduktPills`, Filter „Produktkunden"/Produkt-Select in beiden Listen, CSV-Spalten; Produktliste `PRODUKTE` in `lib/crm/types.ts`) · E-Mail (IMAP) · E&A-Rechnung · Fakturierung (Angebote/Rechnungen/Gutschriften, Offene Posten) · Aufgaben · Verwaltung der software:112-Demo. Referenzsystem: software:112 (Ordner „ERP Software112").
 - Supabase-Projekt `hohenstein-suite` (Ref `usvniwfqozqkxdhjjumm`, eu-central-1). Vercel aus GitHub `main`.
 - Ein Mandant: `11111111-1111-4111-8111-111111111111` Hohenstein Consulting OG (E&A-Betriebsbeginn 01.01.2026).
 - Demo-Umgebung = Mandant „Weingut Musterhof (Demo)" `33333333-3333-4333-8333-333333333333` im software:112-Projekt

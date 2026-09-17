@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import type { FirmaRow } from '@/lib/crm/types'
-import { kontaktName } from '@/lib/crm/types'
+import { kontaktName, parseProdukte } from '@/lib/crm/types'
 import type { AktivitaetMitDokumenten, PipelineKurz } from '@/components/crm/crmUtils'
 import { ladeMandantMitglieder } from '@/lib/aufgaben/mitglieder'
 import FirmaDetailClient, { type Ansprechpartner } from './FirmaDetailClient'
@@ -34,7 +34,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
 
   const [{ data: fRaw }, { data: kRaw }, { data: kfRaw }, { data: pRaw }, mitglieder] = await Promise.all([
     (supabase.from('firmen') as any)
-      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, account_manager, notizen, aktiv, erstellt_am')
+      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, account_manager, produktkunde, produkte, notizen, aktiv, erstellt_am')
       .eq('id', id).eq('tenant_id', tenantId).maybeSingle(),
     // Ansprechpartner 1: Kontakte mit firma_id = diese Firma
     (supabase.from('kontakte') as any)
@@ -81,6 +81,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
     zahlungsziel_tage: f.zahlungsziel_tage ?? 14,
     is_lead: !!f.is_lead, ist_kunde: !!f.ist_kunde, ist_lieferant: !!f.ist_lieferant,
     quelle: f.quelle ?? null, account_manager: f.account_manager ?? null,
+    produktkunde: !!f.produktkunde, produkte: parseProdukte(f.produkte),
     notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
   }
 

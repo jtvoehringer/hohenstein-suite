@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
+import { parseProdukte, type ProduktEintrag } from '@/lib/crm/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
@@ -70,8 +71,19 @@ function revalidateCrm() {
 
 // ── Kontakte ──────────────────────────────────────────────────────────────────
 
+/** Produktkunde-Felder aus dem Formular: produktkunde (bool) + produkte (JSON-Array) */
+function produktkundePayload(fd: FormData): { produktkunde: boolean; produkte: ProduktEintrag[] } {
+  const produktkunde = bool(fd, 'produktkunde')
+  let produkte: ProduktEintrag[] = []
+  if (produktkunde) {
+    try { produkte = parseProdukte(JSON.parse(str(fd, 'produkte') ?? '[]')) } catch { produkte = [] }
+  }
+  return { produktkunde, produkte }
+}
+
 function kontaktPayload(fd: FormData): R {
   return {
+    ...produktkundePayload(fd),
     vorname:                str(fd, 'vorname'),
     nachname:               str(fd, 'nachname') ?? '',
     segment:                str(fd, 'segment') ?? 'weinbau',
@@ -159,6 +171,7 @@ function firmaPayload(fd: FormData): R {
     ist_lieferant:     bool(fd, 'ist_lieferant'),
     quelle:            str(fd, 'quelle'),
     notizen:           str(fd, 'notizen'),
+    ...produktkundePayload(fd),
   }
 }
 

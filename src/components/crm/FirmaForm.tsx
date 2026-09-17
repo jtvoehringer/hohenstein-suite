@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { SEGMENTE, BETRIEBSSTANDORTE, regionenFuer } from '@/lib/crm/types'
-import type { FirmaRow } from '@/lib/crm/types'
+import type { FirmaRow, ProduktEintrag } from '@/lib/crm/types'
+import ProduktkundeFelder from './ProduktkundeFelder'
 import { createFirma, updateFirma } from '@/app/(dashboard)/crm/actions'
 import { LAENDER, VORWAHLEN } from './crmUtils'
 
@@ -24,6 +25,7 @@ export default function FirmaForm({
   const [standort, setStandort]         = useState(initial?.betriebsstandort ?? '')
   const [region, setRegion]             = useState(initial?.region ?? '')
   const [fehler, setFehler]             = useState<string | null>(null)
+  const [produkt, setProdukt]           = useState<{ produktkunde: boolean; produkte: ProduktEintrag[] }>({ produktkunde: initial?.produktkunde ?? false, produkte: initial?.produkte ?? [] })
   const v = (f: keyof FirmaRow) => (initial?.[f] ?? '') as string
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -32,6 +34,8 @@ export default function FirmaForm({
     fd.set('is_lead', isLead ? 'true' : 'false')
     fd.set('ist_kunde', istKunde ? 'true' : 'false')
     fd.set('ist_lieferant', istLieferant ? 'true' : 'false')
+    fd.set('produktkunde', produkt.produktkunde ? 'true' : 'false')
+    fd.set('produkte', JSON.stringify(produkt.produkte))
     setFehler(null)
     startTransition(async () => {
       const res = initial ? await updateFirma(initial.id, fd) : await createFirma(fd)
@@ -141,6 +145,9 @@ export default function FirmaForm({
             <input type="checkbox" checked={istLieferant} onChange={e => setIstLieferant(e.target.checked)} className={check} />
             Lieferant
           </label>
+        </div>
+        <div className="sm:col-span-2">
+          <ProduktkundeFelder produktkunde={produkt.produktkunde} produkte={produkt.produkte} onChange={setProdukt} />
         </div>
         <div className="sm:col-span-2">
           <label className="form-label">Notizen</label>

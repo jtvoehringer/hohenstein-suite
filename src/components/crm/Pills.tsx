@@ -1,4 +1,5 @@
 import { segmentFarbe, segmentLabel, PIPELINE_STUFEN, aktivitaetLabel } from '@/lib/crm/types'
+import { produktLabel, type ProduktEintrag } from '@/lib/crm/types'
 
 export function SegmentPill({ segment }: { segment: string | null | undefined }) {
   return <span className={`pill ${segmentFarbe(segment)}`}>{segmentLabel(segment)}</span>
@@ -21,6 +22,21 @@ export function FlagPill({ label, tone = 'neutral' }: { label: string; tone?: 'n
     : tone === 'blue' ? 'bg-hs-blue-50 text-hs-blue-700'
     : 'bg-gray-100 text-gray-700'
   return <span className={`pill ${cls}`}>{label}</span>
+}
+
+/** Produktkunde (Migration 020): je genutztem Produkt ein Pill, mit Kundennummer im Produktsystem */
+export function ProduktPills({ produktkunde, produkte, kompakt = false }: { produktkunde: boolean; produkte: ProduktEintrag[]; kompakt?: boolean }) {
+  if (!produktkunde) return null
+  if (produkte.length === 0) return <span className="pill bg-hs-blue-50 text-hs-blue-700" title="Produktkunde – noch kein Produkt zugeordnet">Produktkunde</span>
+  return (
+    <>
+      {produkte.map(p => (
+        <span key={p.produkt} className="pill bg-hs-blue-50 text-hs-blue-700" title={`Produktkunde ${produktLabel(p.produkt)}${p.kundennummer ? ` · Kundennummer ${p.kundennummer}` : ''}`}>
+          {produktLabel(p.produkt)}{!kompakt && p.kundennummer && <span className="font-mono font-normal ml-1 opacity-80">#{p.kundennummer}</span>}
+        </span>
+      ))}
+    </>
+  )
 }
 
 /** Farben der Aktivitäts-Arten (Kalender-Chips + Timeline) */

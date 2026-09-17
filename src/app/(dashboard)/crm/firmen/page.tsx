@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import type { FirmaRow } from '@/lib/crm/types'
+import { parseProdukte } from '@/lib/crm/types'
 import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import { ladeMandantMitglieder } from '@/lib/aufgaben/mitglieder'
 import FirmenClient from './FirmenClient'
@@ -22,7 +23,7 @@ export default async function FirmenPage({ searchParams }: { searchParams: Promi
 
   const [fRaw, kRaw, mitglieder] = await Promise.all([
     alleZeilen(() => (supabase.from('firmen') as any)
-      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, account_manager, notizen, aktiv, erstellt_am')
+      .select('id, kundennummer, name, segment, strasse, plz, ort, land, betriebsstandort, region, telefon_vorwahl, telefon, email, website, uid_nummer, zahlungsziel_tage, is_lead, ist_kunde, ist_lieferant, quelle, account_manager, produktkunde, produkte, notizen, aktiv, erstellt_am')
       .eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
     alleZeilen(() => (supabase.from('kontakte') as any)
       .select('id, firma_id').eq('tenant_id', tenantId).eq('aktiv', true).not('firma_id', 'is', null).order('id')),
@@ -41,6 +42,7 @@ export default async function FirmenPage({ searchParams }: { searchParams: Promi
     zahlungsziel_tage: f.zahlungsziel_tage ?? 14,
     is_lead: !!f.is_lead, ist_kunde: !!f.ist_kunde, ist_lieferant: !!f.ist_lieferant,
     quelle: f.quelle ?? null, account_manager: f.account_manager ?? null,
+    produktkunde: !!f.produktkunde, produkte: parseProdukte(f.produkte),
     notizen: f.notizen ?? null, aktiv: f.aktiv ?? true, erstellt_am: f.erstellt_am,
   }))
 

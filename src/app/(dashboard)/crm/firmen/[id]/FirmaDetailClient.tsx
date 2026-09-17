@@ -7,7 +7,7 @@ import {
   Pencil, Trash2, Mail, Phone, MapPin, Globe, Plus, Calendar, ChevronLeft, StickyNote, Users, X, Star, UserCog,
 } from 'lucide-react'
 import type { FirmaRow } from '@/lib/crm/types'
-import { AKTIVITAET_ARTEN } from '@/lib/crm/types'
+import { AKTIVITAET_ARTEN, produktLabel } from '@/lib/crm/types'
 import { fmtDatum } from '@/lib/format'
 import { deleteFirma, removeKontaktVonFirma, setzeAccountManager } from '../../actions'
 import Modal from '@/components/crm/Modal'
@@ -17,7 +17,7 @@ import AktivitaetForm from '@/components/crm/AktivitaetForm'
 import AktivitaetKarte from '@/components/crm/AktivitaetKarte'
 import PipelineForm from '@/components/crm/PipelineForm'
 import PipelineListe from '@/components/crm/PipelineListe'
-import { SegmentPill, LeadPill, FlagPill } from '@/components/crm/Pills'
+import { SegmentPill, LeadPill, FlagPill, ProduktPills } from '@/components/crm/Pills'
 import DateienKarte, { type KarteDatei } from '@/components/crm/DateienKarte'
 import { fmtTelefon, telHref, mapsHref, LAENDER, type AktivitaetMitDokumenten, type PipelineKurz } from '@/components/crm/crmUtils'
 
@@ -131,6 +131,7 @@ export default function FirmaDetailClient({
             <LeadPill isLead={firma.is_lead} />
             {firma.ist_kunde && !firma.is_lead && <FlagPill label="Kunde" tone="ok" />}
             {firma.ist_lieferant && <FlagPill label="Lieferant" tone="neutral" />}
+            <ProduktPills produktkunde={firma.produktkunde} produkte={firma.produkte} />
           </div>
         </div>
         {writeOk && (
@@ -297,6 +298,7 @@ export default function FirmaDetailClient({
               {firma.betriebsstandort && (<><dt className="text-hs-text-2">Betriebsstandort</dt><dd className="text-hs-text">{firma.betriebsstandort}</dd></>)}
               {firma.region && (<><dt className="text-hs-text-2">Region</dt><dd className="text-hs-text">{firma.region}</dd></>)}
               {firma.quelle && (<><dt className="text-hs-text-2">Quelle</dt><dd className="text-hs-text">{firma.quelle}</dd></>)}
+              {firma.produktkunde && (<><dt className="text-hs-text-2">Produktkunde</dt><dd className="text-hs-text">{firma.produkte.length ? firma.produkte.map(p => <span key={p.produkt} className="block">{produktLabel(p.produkt)}{p.kundennummer && <span className="font-mono text-hs-text-2"> · Nr. {p.kundennummer}</span>}</span>) : 'ja (kein Produkt zugeordnet)'}</dd></>)}
               <dt className="text-hs-text-2">UID-Nummer</dt><dd className="text-hs-text font-mono">{firma.uid_nummer ?? '–'}</dd>
               <dt className="text-hs-text-2">Zahlungsziel</dt><dd className="text-hs-text">{firma.zahlungsziel_tage === 0 ? 'bei Erhalt' : `${firma.zahlungsziel_tage} Tage`}</dd>
             </dl>

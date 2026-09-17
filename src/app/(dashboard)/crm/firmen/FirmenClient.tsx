@@ -4,17 +4,17 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Download, Search, Users, Upload, Trash2, KanbanSquare, X, CheckSquare } from 'lucide-react'
-import { SEGMENTE, BETRIEBSSTANDORTE } from '@/lib/crm/types'
+import { SEGMENTE, BETRIEBSSTANDORTE, PRODUKTE } from '@/lib/crm/types'
 import type { FirmaRow } from '@/lib/crm/types'
 import ClickableTableRow from '@/components/ui/ClickableTableRow'
 import Modal from '@/components/crm/Modal'
 import FirmaForm from '@/components/crm/FirmaForm'
-import { SegmentPill, LeadPill, FlagPill } from '@/components/crm/Pills'
+import { SegmentPill, LeadPill, FlagPill, ProduktPills } from '@/components/crm/Pills'
 import { fmtTelefon } from '@/components/crm/crmUtils'
 import SammelChanceForm from '@/components/crm/SammelChanceForm'
 import { deleteFirmen } from '../actions'
 
-type Filter = 'alle' | 'lead' | 'kunde' | 'lieferant'
+type Filter = 'alle' | 'lead' | 'kunde' | 'lieferant' | 'produktkunde'
 
 export default function FirmenClient({
   firmen, anzahlKontakte, mitglieder, writeOk, initialFilter = 'alle', openNeu = false, initialSegment,
@@ -38,6 +38,7 @@ export default function FirmenClient({
   const [region, setRegion]     = useState('alle')
   const [quelle, setQuelle]     = useState('alle')
   const [manager, setManager]   = useState('alle')
+  const [produktFilter, setProduktFilter] = useState('alle')
   const [buchstabe, setBuchstabe] = useState('alle')
   // Sammelaktionen: Auswahl per Klickbox
   const [auswahl, setAuswahl] = useState<Set<string>>(new Set())
@@ -81,6 +82,8 @@ export default function FirmenClient({
       if (filter === 'lead' && !f.is_lead) return false
       if (filter === 'kunde' && !(f.ist_kunde && !f.is_lead)) return false
       if (filter === 'lieferant' && !f.ist_lieferant) return false
+      if (filter === 'produktkunde' && !f.produktkunde) return false
+      if (produktFilter !== 'alle' && !(f.produktkunde && f.produkte.some(p => p.produkt === produktFilter))) return false
       if (standort !== 'alle' && f.betriebsstandort !== standort) return false
       if (region !== 'alle' && f.region !== region) return false
       if (quelle !== 'alle' && f.quelle !== quelle) return false
@@ -92,11 +95,12 @@ export default function FirmenClient({
       return text.includes(q)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firmen, suche, segment, filter, standort, region, quelle, manager, buchstabe])
+  }, [firmen, suche, segment, filter, standort, region, quelle, manager, buchstabe, produktFilter])
 
   const nLead = firmen.filter(f => f.is_lead).length
   const nKunde = firmen.filter(f => f.ist_kunde && !f.is_lead).length
   const nLieferant = firmen.filter(f => f.ist_lieferant).length
+  const nProdukt = firmen.filter(f => f.produktkunde).length
   const chip = (aktiv: boolean) =>
     `px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${aktiv ? 'bg-hs-teal text-white' : 'bg-hs-bg text-hs-text-1 hover:text-hs-text'}`
 
@@ -167,6 +171,7 @@ export default function FirmenClient({
             <button onClick={() => setFilter('lead')} className={chip(filter === 'lead')}>Leads ({nLead})</button>
             <button onClick={() => setFilter('kunde')} className={chip(filter === 'kunde')}>Kunden ({nKunde})</button>
             <button onClick={() => setFilter('lieferant')} className={chip(filter === 'lieferant')}>Lieferanten ({nLieferant})</button>
+            <button onClick={() => setFilter('produktkunde')} className={chip(filter === 'produktkunde')}>Produktkunden ({nProdukt})</button>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <a href="/api/export/firmen" className="btn-secondary" title="Alle Firmen als CSV exportieren">
@@ -194,6 +199,12 @@ export default function FirmenClient({
             )
           })}
           <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+            {nProdukt > 0 && (
+              <select value={produktFilter} onChange={e => setProduktFilter(e.target.value)} className="input !w-auto !py-1 text-xs" aria-label="Produkt">
+                <option value="alle">Alle Produkte</option>
+                {PRODUKTE.map(p => <option key={p.value} value={p.value}>{p.label} ({firmen.filter(f => f.produktkunde && f.produkte.some(x => x.produkt === p.value)).length})</option>)}
+              </select>
+            )}
             {mitglieder.length > 0 && (
               <select value={manager} onChange={e => setManager(e.target.value)}
                 className="input !w-auto !py-1 text-xs" aria-label="Account Manager">
@@ -317,6 +328,7 @@ export default function FirmenClient({
                       <div className="flex items-center gap-1 flex-wrap">
                         <LeadPill isLead={f.is_lead} />
                         {f.ist_lieferant && <FlagPill label="Lieferant" tone="neutral" />}
+                        <ProduktPills produktkunde={f.produktkunde} produkte={f.produkte} kompakt />
                       </div>
                     </td>
                   </ClickableTableRow>

@@ -4,18 +4,18 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Download, Search, Upload, Camera, Trash2, KanbanSquare, X, CheckSquare } from 'lucide-react'
-import { SEGMENTE } from '@/lib/crm/types'
+import { SEGMENTE, PRODUKTE } from '@/lib/crm/types'
 import type { KontaktRow } from '@/lib/crm/types'
 import ClickableTableRow from '@/components/ui/ClickableTableRow'
 import StopPropagation from '@/components/ui/StopPropagation'
 import Modal from '@/components/crm/Modal'
 import KontaktForm, { type FirmaOption } from '@/components/crm/KontaktForm'
-import { SegmentPill, LeadPill } from '@/components/crm/Pills'
+import { SegmentPill, LeadPill, ProduktPills } from '@/components/crm/Pills'
 import { fmtTelefon } from '@/components/crm/crmUtils'
 import SammelChanceForm from '@/components/crm/SammelChanceForm'
 import { deleteKontakte } from '../actions'
 
-type LeadFilter = 'alle' | 'lead' | 'kunde'
+type LeadFilter = 'alle' | 'lead' | 'kunde' | 'produktkunde'
 
 export default function KontakteClient({
   kontakte, firmen, writeOk, initialFilter = 'alle', openNeu = false, initialSegment,
@@ -34,6 +34,7 @@ export default function KontakteClient({
   const [segment, setSegment]     = useState<string>(initialSegment && SEGMENTE.some(s => s.value === initialSegment) ? initialSegment : 'alle')
   const [leadFilter, setLeadFilter] = useState<LeadFilter>(initialFilter)
   const [buchstabe, setBuchstabe] = useState<string>('')
+  const [produktFilter, setProduktFilter] = useState('alle')
   // Sammelaktionen: Auswahl per Klickbox
   const [auswahl, setAuswahl] = useState<Set<string>>(new Set())
   const [showPipeline, setShowPipeline] = useState(false)
@@ -46,16 +47,19 @@ export default function KontakteClient({
       if (segment !== 'alle' && k.segment !== segment) return false
       if (leadFilter === 'lead' && !k.is_lead) return false
       if (leadFilter === 'kunde' && k.is_lead) return false
+      if (leadFilter === 'produktkunde' && !k.produktkunde) return false
+      if (produktFilter !== 'alle' && !(k.produktkunde && k.produkte.some(p => p.produkt === produktFilter))) return false
       if (buchstabe && !(k.nachname ?? '').toUpperCase().startsWith(buchstabe)) return false
       if (!q) return true
       const text = [k.kundennummer, k.vorname, k.nachname, k.email, k.telefon, k.mobil, k.ort, k.firma_name, k.position, k.ansprechpartner_intern]
         .filter(Boolean).join(' ').toLowerCase()
       return text.includes(q)
     })
-  }, [kontakte, suche, segment, leadFilter, buchstabe])
+  }, [kontakte, suche, segment, leadFilter, buchstabe, produktFilter])
 
   const anzahlLeads  = kontakte.filter(k => k.is_lead).length
   const anzahlKunden = kontakte.length - anzahlLeads
+  const anzahlProdukt = kontakte.filter(k => k.produktkunde).length
   const chip = (aktiv: boolean) =>
     `px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${aktiv ? 'bg-hs-teal text-white' : 'bg-hs-bg text-hs-text-1 hover:text-hs-text'}`
 
@@ -107,7 +111,14 @@ export default function KontakteClient({
             <button onClick={() => setLeadFilter('alle')} className={chip(leadFilter === 'alle')}>Alle ({kontakte.length})</button>
             <button onClick={() => setLeadFilter('lead')} className={chip(leadFilter === 'lead')}>Leads ({anzahlLeads})</button>
             <button onClick={() => setLeadFilter('kunde')} className={chip(leadFilter === 'kunde')}>Kunden ({anzahlKunden})</button>
+            <button onClick={() => setLeadFilter('produktkunde')} className={chip(leadFilter === 'produktkunde')}>Produktkunden ({anzahlProdukt})</button>
           </div>
+          {anzahlProdukt > 0 && (
+            <select value={produktFilter} onChange={e => setProduktFilter(e.target.value)} className="input !w-auto !py-1 text-xs" aria-label="Produkt">
+              <option value="alle">Alle Produkte</option>
+              {PRODUKTE.map(p => <option key={p.value} value={p.value}>{p.label} ({kontakte.filter(k => k.produktkunde && k.produkte.some(x => x.produkt === p.value)).length})</option>)}
+            </select>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <a href="/api/export/kontakte" className="btn-secondary" title="Alle Kontakte als CSV exportieren">
               <Download size={15} strokeWidth={1.75} /> CSV
@@ -233,7 +244,7 @@ export default function KontakteClient({
                     <td className="px-4 py-2.5 hidden lg:table-cell text-hs-text-1">
                       {k.ort ? `${k.plz ? k.plz + ' ' : ''}${k.ort}${k.land && k.land !== 'AT' ? ` (${k.land})` : ''}` : <span className="text-hs-tertiary">–</span>}
                     </td>
-                    <td className="px-4 py-2.5"><LeadPill isLead={k.is_lead} /></td>
+                    <td className="px-4 py-2.5"><div className="flex items-center gap-1 flex-wrap"><LeadPill isLead={k.is_lead} /><ProduktPills produktkunde={k.produktkunde} produkte={k.produkte} kompakt /></div></td>
                   </ClickableTableRow>
                 ))}
               </tbody>

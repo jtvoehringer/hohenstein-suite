@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import type { KontaktRow } from '@/lib/crm/types'
+import { parseProdukte } from '@/lib/crm/types'
 import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import KontakteClient from './KontakteClient'
 
@@ -21,7 +22,7 @@ export default async function KontaktePage({ searchParams }: { searchParams: Pro
 
   const [kRaw, fRaw] = await Promise.all([
     alleZeilen(() => (supabase.from('kontakte') as any)
-      .select('id, kundennummer, vorname, nachname, segment, firma_id, firmen:firma_id(name), position, email, telefon_vorwahl, telefon, mobil_vorwahl, mobil, strasse, plz, ort, land, geburtsdatum, sprache, ansprechpartner_intern, is_lead, notizen, aktiv, erstellt_am')
+      .select('id, kundennummer, vorname, nachname, segment, firma_id, firmen:firma_id(name), position, email, telefon_vorwahl, telefon, mobil_vorwahl, mobil, strasse, plz, ort, land, geburtsdatum, sprache, ansprechpartner_intern, is_lead, produktkunde, produkte, notizen, aktiv, erstellt_am')
       .eq('tenant_id', tenantId).eq('aktiv', true)
       .order('nachname').order('vorname').order('id')),
     alleZeilen(() => (supabase.from('firmen') as any)
@@ -37,7 +38,7 @@ export default async function KontaktePage({ searchParams }: { searchParams: Pro
     strasse: k.strasse ?? null, plz: k.plz ?? null, ort: k.ort ?? null, land: k.land ?? 'AT',
     geburtsdatum: k.geburtsdatum ?? null, sprache: k.sprache ?? 'de',
     ansprechpartner_intern: k.ansprechpartner_intern ?? null,
-    is_lead: !!k.is_lead, notizen: k.notizen ?? null, aktiv: k.aktiv ?? true, erstellt_am: k.erstellt_am,
+    is_lead: !!k.is_lead, produktkunde: !!k.produktkunde, produkte: parseProdukte(k.produkte), notizen: k.notizen ?? null, aktiv: k.aktiv ?? true, erstellt_am: k.erstellt_am,
   }))
   const firmen = ((fRaw ?? []) as R[]).map(f => ({ id: f.id as string, name: f.name as string }))
 

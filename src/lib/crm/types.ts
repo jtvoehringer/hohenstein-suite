@@ -84,6 +84,37 @@ export function aktivitaetLabel(value: string | null | undefined): string {
   return AKTIVITAET_ARTEN.find(a => a.value === value)?.label ?? value ?? '–'
 }
 
+// ── Produktkunde (Migration 020) ──────────────────────────────────────────────
+
+export const PRODUKTE = [
+  { value: 'software112', label: 'software:112' },
+  { value: 'webpage',     label: 'Webpage' },
+  { value: 'weinshop',    label: 'Weinshop' },
+] as const
+export type ProduktKey = (typeof PRODUKTE)[number]['value']
+/** Eintrag je Produkt, das der Kunde nutzt – Kundennummer im jeweiligen Produktsystem */
+export type ProduktEintrag = { produkt: ProduktKey; kundennummer: string | null }
+
+export function produktLabel(value: string | null | undefined): string {
+  return PRODUKTE.find(p => p.value === value)?.label ?? value ?? '–'
+}
+/** JSON aus der DB robust in ProduktEintrag[] wandeln (nur bekannte Produkte, je Produkt einmal) */
+export function parseProdukte(roh: unknown): ProduktEintrag[] {
+  if (!Array.isArray(roh)) return []
+  const out: ProduktEintrag[] = []
+  for (const e of roh) {
+    const produkt = (e as { produkt?: unknown })?.produkt
+    if (typeof produkt !== 'string' || !PRODUKTE.some(p => p.value === produkt) || out.some(o => o.produkt === produkt)) continue
+    const kn = (e as { kundennummer?: unknown })?.kundennummer
+    out.push({ produkt: produkt as ProduktKey, kundennummer: typeof kn === 'string' && kn.trim() ? kn.trim() : null })
+  }
+  return out
+}
+/** Kurztext, z. B. „software:112 (Nr. 4711) · Webpage“ */
+export function produkteText(produkte: ProduktEintrag[] | null | undefined): string {
+  return (produkte ?? []).map(p => p.kundennummer ? `${produktLabel(p.produkt)} (Nr. ${p.kundennummer})` : produktLabel(p.produkt)).join(' · ')
+}
+
 // ── Basis-Typen ───────────────────────────────────────────────────────────────
 
 export type KontaktRow = {
@@ -108,6 +139,9 @@ export type KontaktRow = {
   sprache: string | null
   ansprechpartner_intern: string | null
   is_lead: boolean
+  /** Produktkunde (Migration 020): nutzt eines unserer Produkte */
+  produktkunde: boolean
+  produkte: ProduktEintrag[]
   notizen: string | null
   aktiv: boolean
   erstellt_am: string
@@ -136,6 +170,9 @@ export type FirmaRow = {
   quelle: string | null
   /** Team-Mitglied (auth.users-ID), das den Lead/Kunden betreut – Migration 013 */
   account_manager: string | null
+  /** Produktkunde (Migration 020): nutzt eines unserer Produkte */
+  produktkunde: boolean
+  produkte: ProduktEintrag[]
   notizen: string | null
   aktiv: boolean
   erstellt_am: string
