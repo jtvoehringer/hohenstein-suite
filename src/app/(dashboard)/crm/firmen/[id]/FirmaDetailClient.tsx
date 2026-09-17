@@ -298,10 +298,36 @@ export default function FirmaDetailClient({
               {firma.betriebsstandort && (<><dt className="text-hs-text-2">Betriebsstandort</dt><dd className="text-hs-text">{firma.betriebsstandort}</dd></>)}
               {firma.region && (<><dt className="text-hs-text-2">Region</dt><dd className="text-hs-text">{firma.region}</dd></>)}
               {firma.quelle && (<><dt className="text-hs-text-2">Quelle</dt><dd className="text-hs-text">{firma.quelle}</dd></>)}
-              {firma.produktkunde && (<><dt className="text-hs-text-2">Produktkunde</dt><dd className="text-hs-text">{firma.produkte.length ? firma.produkte.map(p => <span key={p.produkt} className="block">{produktLabel(p.produkt)}{p.kundennummer && <span className="font-mono text-hs-text-2"> · Nr. {p.kundennummer}</span>}</span>) : 'ja (kein Produkt zugeordnet)'}</dd></>)}
               <dt className="text-hs-text-2">UID-Nummer</dt><dd className="text-hs-text font-mono">{firma.uid_nummer ?? '–'}</dd>
               <dt className="text-hs-text-2">Zahlungsziel</dt><dd className="text-hs-text">{firma.zahlungsziel_tage === 0 ? 'bei Erhalt' : `${firma.zahlungsziel_tage} Tage`}</dd>
             </dl>
+            {/* Produktkunde: je Produkt eine Zeile, Kundennummer als Chip (Klick = kopieren)
+                statt umbrechendem Fließtext (Rückmeldung 17.9.2026) */}
+            {firma.produktkunde && (
+              <div className="pt-2 border-t border-hs-line">
+                <p className="text-xs text-hs-text-2 mb-1.5">Produktkunde</p>
+                {firma.produkte.length ? (
+                  <ul className="space-y-1.5">
+                    {firma.produkte.map(p => (
+                      <li key={p.produkt} className="flex items-center justify-between gap-2 rounded-lg border border-hs-line bg-hs-bg px-2.5 py-1.5">
+                        <span className="text-xs font-semibold text-hs-blue-700 truncate">{produktLabel(p.produkt)}</span>
+                        {p.kundennummer ? (
+                          <button type="button" title="Kundennummer kopieren"
+                            onClick={() => { void navigator.clipboard?.writeText(p.kundennummer ?? '') }}
+                            className="font-mono text-xs text-hs-text tabular-nums whitespace-nowrap px-1.5 py-0.5 rounded bg-white border border-hs-line hover:border-hs-blue-700 hover:text-hs-blue-700">
+                            {p.kundennummer}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-hs-text-2 whitespace-nowrap">keine Kundennummer</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-hs-text-2">ja – noch kein Produkt zugeordnet</p>
+                )}
+              </div>
+            )}
             {firma.notizen && (
               <p className="text-xs text-hs-text-1 whitespace-pre-wrap pt-2 border-t border-hs-line">{firma.notizen}</p>
             )}
