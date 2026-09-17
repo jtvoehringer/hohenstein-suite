@@ -23,9 +23,12 @@ export default function Modal({
 
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-hs-navy/40 p-4 overflow-y-auto" onClick={onClose}>
-      <div className={`bg-white rounded-xl border border-hs-line shadow-lg w-full ${width} my-4`} onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-3 border-b border-hs-line">
+    // Zentrierung über m-auto (nicht items-center): eine Karte, die höher als der Bildschirm ist,
+    // wird so nicht oben abgeschnitten. Die Karte selbst ist auf die Bildschirmhöhe begrenzt –
+    // Kopfzeile bleibt stehen, der Inhalt (inkl. Speichern/Abbrechen) scrollt innerhalb der Karte.
+    <div className="fixed inset-0 z-50 flex justify-center bg-hs-navy/40 p-3 sm:p-4 overflow-y-auto" onClick={onClose}>
+      <div className={`bg-white rounded-xl border border-hs-line shadow-lg w-full ${width} m-auto flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)]`} onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 px-5 pt-4 pb-3 border-b border-hs-line shrink-0">
           <div className="min-w-0">
             <h2 className="text-base leading-tight">{title}</h2>
             {subtitle && <p className="text-xs text-hs-text-2 mt-0.5">{subtitle}</p>}
@@ -35,7 +38,7 @@ export default function Modal({
             <X size={18} strokeWidth={1.75} />
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="px-5 py-4 overflow-y-auto overscroll-contain">{children}</div>
       </div>
     </div>
   )
