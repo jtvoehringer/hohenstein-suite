@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Download, Search, Users, Upload } from 'lucide-react'
+import { Plus, Download, Search, Users, Upload, Trash2, KanbanSquare, X, CheckSquare } from 'lucide-react'
 import { SEGMENTE, BETRIEBSSTANDORTE } from '@/lib/crm/types'
 import type { FirmaRow } from '@/lib/crm/types'
 import ClickableTableRow from '@/components/ui/ClickableTableRow'
@@ -11,6 +11,8 @@ import Modal from '@/components/crm/Modal'
 import FirmaForm from '@/components/crm/FirmaForm'
 import { SegmentPill, LeadPill, FlagPill } from '@/components/crm/Pills'
 import { fmtTelefon } from '@/components/crm/crmUtils'
+import SammelChanceForm from '@/components/crm/SammelChanceForm'
+import { deleteFirmen } from '../actions'
 
 type Filter = 'alle' | 'lead' | 'kunde' | 'lieferant'
 
@@ -37,6 +39,11 @@ export default function FirmenClient({
   const [quelle, setQuelle]     = useState('alle')
   const [manager, setManager]   = useState('alle')
   const [buchstabe, setBuchstabe] = useState('alle')
+  // Sammelaktionen: Auswahl per Klickbox
+  const [auswahl, setAuswahl] = useState<Set<string>>(new Set())
+  const [showPipeline, setShowPipeline] = useState(false)
+  const [hinweis, setHinweis] = useState<React.ReactNode>(null)
+  const [pending, startTransition] = useTransition()
 
   const quellen = useMemo(() =>
     [...new Set(firmen.map(f => f.quelle).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'de')),
@@ -92,6 +99,34 @@ export default function FirmenClient({
   const nLieferant = firmen.filter(f => f.ist_lieferant).length
   const chip = (aktiv: boolean) =>
     `px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${aktiv ? 'bg-hs-teal text-white' : 'bg-hs-bg text-hs-text-1 hover:text-hs-text'}`
+
+  const gefiltertIds = useMemo(() => gefiltert.map(f => f.id), [gefiltert])
+  const alleGefiltertGewaehlt = gefiltert.length > 0 && gefiltertIds.every(id => auswahl.has(id))
+  const ausgewaehlteFirmen = useMemo(() => firmen.filter(f => auswahl.has(f.id)), [firmen, auswahl])
+  function toggleAuswahl(id: string) {
+    setAuswahl(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  }
+  function toggleAlle() {
+    setAuswahl(prev => {
+      const n = new Set(prev)
+      if (alleGefiltertGewaehlt) gefiltertIds.forEach(id => n.delete(id)); else gefiltertIds.forEach(id => n.add(id))
+      return n
+    })
+  }
+  function sammelLoeschen() {
+    const n = ausgewaehlteFirmen.length
+    if (n === 0) return
+    const namen = ausgewaehlteFirmen.slice(0, 5).map(f => f.name).join(', ') + (n > 5 ? ` … (+${n - 5})` : '')
+    if (!confirm(`${n} ${n === 1 ? 'Firma' : 'Firmen'} endgültig löschen?\n${namen}\n\nVerknüpfte Kontakte bleiben erhalten; Termine und Chancen verlieren die Firmenzuordnung.`)) return
+    setHinweis(null)
+    startTransition(async () => {
+      const res = await deleteFirmen([...auswahl])
+      if (res?.error) { setHinweis(`Löschen fehlgeschlagen: ${res.error}`); return }
+      setHinweis(`${res.anzahl ?? n} ${res.anzahl === 1 ? 'Firma' : 'Firmen'} gelöscht.`)
+      setAuswahl(new Set())
+      router.refresh()
+    })
+  }
 
   function schliesseNeu() {
     setShowNeu(false)
@@ -192,6 +227,32 @@ export default function FirmenClient({
         </div>
       </div>
 
+      {hinweis && (
+        <div className="flex items-center justify-between gap-2 text-sm rounded-lg px-3 py-2 bg-hs-blue-50 text-hs-blue-700">
+          <span>{hinweis}</span>
+          <button type="button" onClick={() => setHinweis(null)} className="p-0.5 hover:text-hs-text" aria-label="Hinweis schließen"><X size={14} /></button>
+        </div>
+      )}
+      {writeOk && auswahl.size > 0 && (
+        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-hs-blue-300 bg-white shadow-sm px-3 py-2 text-sm">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-hs-text">
+            <CheckSquare size={15} strokeWidth={2} className="text-hs-teal" />
+            {auswahl.size} {auswahl.size === 1 ? 'Firma' : 'Firmen'} ausgewählt
+          </span>
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
+            <button type="button" onClick={() => setShowPipeline(true)} disabled={pending} className="btn-primary !py-1.5" title="Für jede ausgewählte Firma eine Verkaufschance anlegen (z. B. Kampagne)">
+              <KanbanSquare size={15} strokeWidth={1.75} /> Pipeline
+            </button>
+            <button type="button" onClick={sammelLoeschen} disabled={pending} className="btn-danger !py-1.5">
+              <Trash2 size={15} strokeWidth={1.75} /> Löschen
+            </button>
+            <button type="button" onClick={() => setAuswahl(new Set())} className="btn-secondary !py-1.5">
+              <X size={15} strokeWidth={1.75} /> Auswahl aufheben
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-hs-line overflow-hidden">
         {gefiltert.length === 0 ? (
           <div className="p-8 text-center">
@@ -207,6 +268,12 @@ export default function FirmenClient({
             <table className="w-full text-sm">
               <thead className="table-head">
                 <tr>
+                  {writeOk && (
+                    <th className="px-3 py-2.5 w-8">
+                      <input type="checkbox" checked={alleGefiltertGewaehlt} onChange={toggleAlle} className="accent-hs-teal cursor-pointer"
+                        aria-label="Alle angezeigten Firmen auswählen" title={alleGefiltertGewaehlt ? 'Auswahl der angezeigten Firmen aufheben' : `Alle ${gefiltert.length} angezeigten Firmen auswählen`} />
+                    </th>
+                  )}
                   <th className="text-left px-4 py-2.5">Firma</th>
                   <th className="text-left px-4 py-2.5">Segment</th>
                   <th className="text-left px-4 py-2.5 hidden md:table-cell">Ort</th>
@@ -217,7 +284,12 @@ export default function FirmenClient({
               </thead>
               <tbody className="divide-y divide-hs-line">
                 {gefiltert.map(f => (
-                  <ClickableTableRow key={f.id} href={`/crm/firmen/${f.id}`} className="hover:bg-hs-bg/70 transition-colors">
+                  <ClickableTableRow key={f.id} href={`/crm/firmen/${f.id}`} className={`transition-colors ${auswahl.has(f.id) ? 'bg-hs-blue-50/60' : 'hover:bg-hs-bg/70'}`}>
+                    {writeOk && (
+                      <td className="px-3 py-2.5 w-8" onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={auswahl.has(f.id)} onChange={() => toggleAuswahl(f.id)} className="accent-hs-teal cursor-pointer" aria-label={`${f.name} auswählen`} />
+                      </td>
+                    )}
                     <td className="px-4 py-2.5">
                       <div className="font-medium text-hs-text">{f.name}</div>
                       <div className="text-xs text-hs-text-2">
@@ -256,9 +328,27 @@ export default function FirmenClient({
         {gefiltert.length > 0 && (
           <div className="px-4 py-2 border-t border-hs-line text-xs text-hs-text-2">
             {gefiltert.length} von {firmen.length} {firmen.length === 1 ? 'Firma' : 'Firmen'}
+            {auswahl.size > 0 && <> · {auswahl.size} ausgewählt</>}
           </div>
         )}
       </div>
+
+      <Modal open={showPipeline} onClose={() => setShowPipeline(false)} title="Chancen anlegen" subtitle="Für jede ausgewählte Firma wird eine eigene Verkaufschance in der Pipeline angelegt." width="max-w-2xl">
+        {showPipeline && (
+          <SammelChanceForm
+            firmen={ausgewaehlteFirmen.map(f => ({ id: f.id, name: f.name }))}
+            onDone={({ angelegt, uebersprungen }) => {
+              setShowPipeline(false)
+              setHinweis(<>
+                {angelegt} {angelegt === 1 ? 'Chance' : 'Chancen'} angelegt{uebersprungen > 0 ? `, ${uebersprungen} ${uebersprungen === 1 ? 'Firma' : 'Firmen'} übersprungen (bereits offene Chance)` : ''}.{' '}
+                <Link href="/crm/pipeline" className="font-semibold underline underline-offset-2">Zur Pipeline →</Link>
+              </>)
+              setAuswahl(new Set())
+            }}
+            onCancel={() => setShowPipeline(false)}
+          />
+        )}
+      </Modal>
 
       <Modal open={showNeu} onClose={schliesseNeu} title="Neue Firma" subtitle="Die Kundennummer wird automatisch vergeben." width="max-w-2xl">
         <FirmaForm
