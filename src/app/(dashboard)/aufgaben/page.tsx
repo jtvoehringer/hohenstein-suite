@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import { heuteIso } from '@/lib/format'
 import { ladeMandantMitglieder } from '@/lib/aufgaben/mitglieder'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import type { AufgabeRow } from '@/lib/aufgaben/types'
 import AufgabenClient from './AufgabenClient'
 
@@ -27,7 +28,7 @@ export default async function AufgabenPage({ searchParams }: { searchParams: Pro
 
   const vor30Tagen = new Date(Date.now() - 30 * 86400000).toISOString()
 
-  const [{ data: offen }, { data: erledigt }, mitglieder, { data: kontakte }, { data: firmen }] = await Promise.all([
+  const [{ data: offen }, { data: erledigt }, mitglieder, kontakte, firmen] = await Promise.all([
     (supabase.from('aufgaben') as any)
       .select('id, titel, beschreibung, status, prioritaet, verantwortlich_id, faellig_am, kontakt_id, firma_id, bereich, erledigt_am, erstellt_von, erstellt_am, aktualisiert_am, kontakte(vorname, nachname), firmen(name)')
       .eq('tenant_id', tenantId).neq('status', 'erledigt')
@@ -37,8 +38,9 @@ export default async function AufgabenPage({ searchParams }: { searchParams: Pro
       .eq('tenant_id', tenantId).eq('status', 'erledigt').gte('erledigt_am', vor30Tagen)
       .order('erledigt_am', { ascending: false }).limit(100),
     ladeMandantMitglieder(tenantId),
-    (supabase.from('kontakte') as any).select('id, vorname, nachname').eq('tenant_id', tenantId).eq('aktiv', true).order('nachname').limit(500),
-    (supabase.from('firmen') as any).select('id, name').eq('tenant_id', tenantId).eq('aktiv', true).order('name').limit(500),
+    // alle Kontakte/Firmen (kein Limit – PostgREST-Cap über alleZeilen), für die Typeahead-Suche im Formular
+    alleZeilen(() => (supabase.from('kontakte') as any).select('id, vorname, nachname, firmen:firma_id(name)').eq('tenant_id', tenantId).eq('aktiv', true).order('nachname').order('vorname').order('id')),
+    alleZeilen(() => (supabase.from('firmen') as any).select('id, name, plz, ort').eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
   ])
 
   const mapRow = (a: R): AufgabeRow => {
@@ -58,8 +60,8 @@ export default async function AufgabenPage({ searchParams }: { searchParams: Pro
     <AufgabenClient
       aufgaben={aufgaben}
       mitglieder={mitglieder}
-      kontakte={((kontakte ?? []) as R[]).map(k => ({ id: k.id, name: [k.vorname, k.nachname].filter(Boolean).join(' ') }))}
-      firmen={((firmen ?? []) as R[]).map(f => ({ id: f.id, name: f.name }))}
+      kontakte={(kontakte as R[]).map(k => ({ id: k.id, name: [k.vorname, k.nachname].filter(Boolean).join(' '), sub: (k.firmen as R | null)?.name ?? null }))}
+      firmen={(firmen as R[]).map(f => ({ id: f.id, name: f.name, sub: [f.plz, f.ort].filter(Boolean).join(' ') || null }))}
       userId={user?.id ?? null}
       darfSchreiben={canWrite(membership.role)}
       heute={heuteIso()}

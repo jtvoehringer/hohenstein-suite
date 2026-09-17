@@ -7,7 +7,7 @@ export type SucheItem = { id: string; label: string; sub?: string | null }
 
 /** Typeahead für Kontakt-/Firmenauswahl. Gibt die gewählte ID über `onChange` zurück (leer = keine Auswahl). */
 export default function KundenSuche({
-  items, value, onChange, placeholder, name,
+  items, value, onChange, placeholder, name, disabled = false,
 }: {
   items: SucheItem[]
   value: string
@@ -15,6 +15,7 @@ export default function KundenSuche({
   placeholder?: string
   /** optional: hidden input mit diesem Namen für FormData */
   name?: string
+  disabled?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [open,  setOpen]  = useState(false)
@@ -40,14 +41,14 @@ export default function KundenSuche({
       {selected ? (
         <div className="flex items-center gap-1.5 border border-hs-line-str rounded-lg px-3 py-2 bg-hs-bg text-sm">
           <span className="flex-1 truncate text-hs-text">{selected.label}</span>
-          <button type="button" onClick={() => { onChange(''); setQuery('') }} aria-label="Auswahl entfernen"
+          {!disabled && <button type="button" onClick={() => { onChange(''); setQuery('') }} aria-label="Auswahl entfernen"
             className="text-hs-text-2 hover:text-hs-text flex-shrink-0">
             <X size={14} strokeWidth={1.75} />
-          </button>
+          </button>}
         </div>
       ) : (
         <>
-          <input type="text" value={query} className="input"
+          <input type="text" value={query} className="input" disabled={disabled}
             onChange={e => { setQuery(e.target.value); setOpen(true) }}
             onFocus={() => setOpen(true)}
             placeholder={placeholder ?? 'Suchen …'} />

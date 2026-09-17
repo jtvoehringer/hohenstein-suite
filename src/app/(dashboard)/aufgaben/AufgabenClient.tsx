@@ -10,9 +10,10 @@ import {
   type AufgabeRow, type MitgliedOption,
 } from '@/lib/aufgaben/types'
 import { StatusPill, PrioPunkt, FaelligAm } from '@/components/aufgaben/AufgabePills'
+import KundenSuche from '@/components/crm/KundenSuche'
 import { speichereAufgabeAction, setzeAufgabeStatusAction, loescheAufgabeAction, type AufgabeInput } from './actions'
 
-type Option = { id: string; name: string }
+type Option = { id: string; name: string; sub?: string | null }
 type Panel = { modus: 'neu' } | { modus: 'bearbeiten'; id: string } | null
 
 interface Props {
@@ -434,17 +435,13 @@ function AufgabePanel({ aufgabe, mitglieder, kontakte, firmen, userId, darfSchre
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="form-label">Firma</label>
-              <select value={form.firma_id ?? ''} onChange={e => set('firma_id', e.target.value)} className="input" disabled={nurLesen}>
-                <option value="">– Keine –</option>
-                {firmen.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
+              <KundenSuche items={firmen.map(f => ({ id: f.id, label: f.name, sub: f.sub }))}
+                value={form.firma_id ?? ''} onChange={v => set('firma_id', v)} placeholder="Firma suchen …" disabled={nurLesen} />
             </div>
             <div>
               <label className="form-label">Kontakt</label>
-              <select value={form.kontakt_id ?? ''} onChange={e => set('kontakt_id', e.target.value)} className="input" disabled={nurLesen}>
-                <option value="">– Keiner –</option>
-                {kontakte.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
-              </select>
+              <KundenSuche items={kontakte.map(k => ({ id: k.id, label: k.name, sub: k.sub }))}
+                value={form.kontakt_id ?? ''} onChange={v => set('kontakt_id', v)} placeholder="Name suchen …" disabled={nurLesen} />
             </div>
           </div>
 

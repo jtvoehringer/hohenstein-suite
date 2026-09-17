@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, Lock } from 'lucide-react'
 import { fmtEuroMitZeichen, heuteIso } from '@/lib/format'
+import KundenSuche from '@/components/crm/KundenSuche'
 import {
   UST_SAETZE, bruttoZuNetto, nettoZuBrutto, ustBetrag, parseBetrag,
   type BuchungInput, type BuchungModus, type KategorieOption, type KontoOption, type FirmaOption,
@@ -254,10 +255,7 @@ export default function BuchungForm({
         </div>
         <div>
           <label className="form-label">Geschäftspartner (Firma)</label>
-          <select value={firmaId} disabled={pending} onChange={e => setFirmaId(e.target.value)} className="input">
-            <option value="">– keine –</option>
-            {firmen.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
+          <KundenSuche items={firmen.map(f => ({ id: f.id, label: f.name }))} value={firmaId} onChange={setFirmaId} placeholder="Firma suchen …" disabled={pending} />
         </div>
       </div>
 

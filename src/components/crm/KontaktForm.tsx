@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { SEGMENTE } from '@/lib/crm/types'
 import type { KontaktRow, ProduktEintrag } from '@/lib/crm/types'
 import ProduktkundeFelder from './ProduktkundeFelder'
+import KundenSuche from './KundenSuche'
 import { createKontakt, updateKontakt } from '@/app/(dashboard)/crm/actions'
 import { LAENDER, VORWAHLEN, SPRACHEN } from './crmUtils'
 
@@ -28,6 +29,7 @@ export default function KontaktForm({
   const [pending, startTransition] = useTransition()
   const [isLead, setIsLead]   = useState(initial?.is_lead ?? true)
   const [land, setLand]       = useState(initial?.land ?? 'AT')
+  const [firmaId, setFirmaId] = useState(initial?.firma_id ?? defaultFirmaId ?? '')
   const [fehler, setFehler]   = useState<string | null>(null)
   const [produkt, setProdukt] = useState<{ produktkunde: boolean; produkte: ProduktEintrag[] }>({ produktkunde: initial?.produktkunde ?? false, produkte: initial?.produkte ?? [] })
   const v = (f: keyof KontaktRow) => (initial?.[f] ?? '') as string
@@ -80,10 +82,7 @@ export default function KontaktForm({
         </div>
         <div>
           <label className="form-label">Firma</label>
-          <select name="firma_id" defaultValue={initial?.firma_id ?? defaultFirmaId ?? ''} className="input">
-            <option value="">– keine –</option>
-            {firmen.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
+          <KundenSuche name="firma_id" items={firmen.map(f => ({ id: f.id, label: f.name }))} value={firmaId} onChange={setFirmaId} placeholder="Firma suchen …" />
         </div>
         <div>
           <label className="form-label">Position / Funktion</label>
