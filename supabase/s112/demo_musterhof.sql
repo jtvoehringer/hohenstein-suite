@@ -464,7 +464,7 @@ begin
 
   -- Zähler / relative Einstellungen
   update tenant_einstellungen
-     set rechnung_zaehler = 1, kunden_zaehler = 1, charge_zaehler = 1, liefernummer_zaehler = 0,
+     set rechnung_zaehler = 1, account_zaehler = 1, charge_zaehler = 1, liefernummer_zaehler = 0,
          ea_betriebsbeginn = make_date(y1, 1, 1)
    where tenant_id = c_t;
 
@@ -1015,10 +1015,11 @@ begin
   -- ── Laufendes Jahr: erste Pressungen ab 1. September (Status gaerung, Gärkontrollen) ──
   if v_ernte_y then
     for r in select * from (values
-      (1, make_date(y,9,2),  'Muskateller',   10, 15, 2100, 16.2, 8,  1450, 'weiss', 40),
-      (2, make_date(y,9,6),  'Zweigelt Rosé', 11, 16, 1300, 15.8, 9,  900,  'rose',  41),
-      (3, make_date(y,9,12), 'Weißburgunder', 6,  10, 4000, 17.4, 2,  2750, 'weiss', 42)
+      (1, make_date(y,9,2),  'Muskateller',   10, 15, 2100, 16.2, 8,  1450, 'weiss', 50),
+      (2, make_date(y,9,6),  'Zweigelt Rosé', 11, 16, 1300, 15.8, 9,  900,  'rose',  51),
+      (3, make_date(y,9,12), 'Weißburgunder', 6,  10, 4000, 17.4, 2,  2750, 'weiss', 52)
     ) as v(nr, dt, bez, wg, gst, kg, kmw, beh, liter, weinart, wa)
+    -- IDs: Pressung 9,21–23 · Charge 11,50–52 · pressung_behaelter 40,51–53 (11,40–42 und 40,60–62 gehören der y2-Kette, 40,10–26 den Vorjahreschargen)
     loop
       if r.dt > d then continue; end if;
       insert into ernte_parzellen (id, jahrgang_id, weingarten_id, rebsorte_id, ernte_datum, menge_kg, menge_hl, klosterneuburger, oechsle, qualitaetsstufe, lesemethode, weinbezeichnung, herkunft_code, created_at)
@@ -1032,7 +1033,7 @@ begin
       select demo_musterhof_id(11, r.wa), c_t, r.bez, y, w.rebsorte, w.id, demo_musterhof_id(10, r.beh), r.liter, 'gaerung', 'qualitaetswein', r.kmw, r.weinart, 'wlnoe', true, r.dt::timestamptz
       from weingarten w where w.id = demo_musterhof_id(2, r.wg);
       insert into pressung_behaelter (id, pressung_id, behaelter_id, weinausbau_id, menge_liter)
-      values (demo_musterhof_id(40, 20 + r.nr), demo_musterhof_id(9, 20 + r.nr), demo_musterhof_id(10, r.beh), demo_musterhof_id(11, r.wa), r.liter);
+      values (demo_musterhof_id(40, 50 + r.nr), demo_musterhof_id(9, 20 + r.nr), demo_musterhof_id(10, r.beh), demo_musterhof_id(11, r.wa), r.liter);
       insert into keller_behandlungen (tenant_id, behaelter_id, typ_id, typ_name_snapshot, datum, menge, einheit, volumen_liter_ist, weinausbau_id, notizen, created_at)
       values (c_t, demo_musterhof_id(10, r.beh), demo_musterhof_id(15,1), 'Hefegabe', r.dt + 1, round(r.liter / 100 * 20), 'g', r.liter, demo_musterhof_id(11, r.wa), 'Reinzuchthefe 20 g/hl', (r.dt + 1)::timestamptz);
       -- Gärkontrollen (Dichte/Restzucker) alle 2 Tage bis gestern – letzte Messung bewusst für Muskateller älter (Messung fällig)
@@ -1070,7 +1071,7 @@ begin
   ) as v(nr, name, seg, str, plz, ort, land, email, rg, lead, kunde, lief, zz, inco, impv, tel)
   loop
     insert into firmen (id, tenant_id, name, segment, strasse, plz, ort, land, telefon, email, uid_nummer, zahlungsziel_tage, waehrung, incoterms, importeur_von,
-      aktiv, kundennummer, rabattgruppe_id, is_lead, ist_kunde, ist_lieferant, skonto_pct, skonto_tage, erstellt_am, notizen)
+      aktiv, accountnummer, rabattgruppe_id, is_lead, ist_kunde, ist_lieferant, skonto_pct, skonto_tage, erstellt_am, notizen)
     values (demo_musterhof_id(22, r.nr), c_t, r.name, r.seg::kundensegment, r.str, r.plz, r.ort, r.land, r.tel, r.email,
       case r.land when 'AT' then 'ATU' || (60000000 + r.nr * 1111) when 'DE' then 'DE' || (200000000 + r.nr) else 'CHE-' || (100 + r.nr) || '.222.333' end,
       r.zz, 'EUR', r.inco, r.impv, true, 'K-' || lpad(r.nr::text, 4, '0'),
@@ -1098,7 +1099,7 @@ begin
   ) as v(nr, vn, nn, seg, firma, pos, haupt, str, plz, ort, email, nl, stamm, lead, geb)
   loop
     insert into kontakte (id, tenant_id, vorname, nachname, segment, firma_id, email, telefon, mobil, strasse, plz, ort, land, geburtsdatum, newsletter, newsletter_bestaetigt,
-      sprache, stammkunde, aktiv, kundennummer, is_lead, skonto_pct, skonto_tage, zahlungsziel_tage, erstellt_am, notizen)
+      sprache, stammkunde, aktiv, accountnummer, is_lead, skonto_pct, skonto_tage, zahlungsziel_tage, erstellt_am, notizen)
     values (demo_musterhof_id(23, r.nr), c_t, r.vn, r.nn, r.seg::kundensegment, case when r.firma is not null then demo_musterhof_id(22, r.firma) end, r.email,
       case when r.firma is null then '2732 ' || (40000 + r.nr * 37) end, '664 ' || (1000000 + r.nr * 4711), r.str, r.plz, r.ort, 'AT', r.geb, r.nl, r.nl,
       'de', r.stamm, true, 'K-' || lpad(r.nr::text, 4, '0'), r.lead, 0, 10, 14, (d - 280 + r.nr * 9)::timestamptz,
@@ -1343,7 +1344,7 @@ begin
   -- ── Zähler nachziehen ──────────────────────────────────────────────────────
   update tenant_einstellungen
      set rechnung_zaehler = coalesce((select max(substring(rechnungsnummer from 4)::int) from verkaufsposten where tenant_id = c_t), 0) + 1,
-         kunden_zaehler   = 26
+         account_zaehler   = 26
    where tenant_id = c_t;
 end $$;
 
