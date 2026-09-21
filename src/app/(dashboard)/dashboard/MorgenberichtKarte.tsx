@@ -9,8 +9,8 @@ import Link from 'next/link'
 import { Sunrise, Activity, UserPlus, CheckCircle2, AlertTriangle, XCircle, ExternalLink } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { fmtDatum } from '@/lib/format'
-import { s112Health, type Ampel, type S112Health } from '@/lib/s112/health'
-import { s112LetzteAnmeldungen, s112Konfiguriert } from '@/lib/s112/admin'
+import { s112Health, s112BenutzerAnmeldungen, type Ampel, type S112Health } from '@/lib/s112/health'
+import { s112Konfiguriert } from '@/lib/s112/admin'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
@@ -29,6 +29,8 @@ type TrialZeile = {
   gueltigBis: string | null
   zugangStatus: string | null
   letzteAnmeldung: string | null
+  /** Benutzer existiert in software:112 nicht (mehr) – z. B. dort gelöscht */
+  kontoFehlt: boolean
 }
 
 async function ladeTrials(tenantId: string): Promise<{ zeilen: TrialZeile[]; aktiveZugaenge: number; neu24h: number }> {
@@ -48,7 +50,7 @@ async function ladeTrials(tenantId: string): Promise<{ zeilen: TrialZeile[]; akt
 
   // Letzte Anmeldung in software:112 (auth.users) – nur für die Zugänge der angezeigten Anfragen
   const userIds = [...new Set(((anfragen ?? []) as R[]).map(a => (zugangById.get(a.demo_zugang_id) ?? zugangByEmail.get(String(a.email).toLowerCase()))?.s112_user_id).filter(Boolean) as string[])]
-  const anmeldungen = await s112LetzteAnmeldungen(userIds)
+  const { ok: anmeldungenGeladen, map: anmeldungen } = await s112BenutzerAnmeldungen(userIds)
 
   const zeilen: TrialZeile[] = ((anfragen ?? []) as R[])
     // Bot-Ablehnungen sind Rauschen – nur echte Anfragen anzeigen
@@ -56,11 +58,14 @@ async function ladeTrials(tenantId: string): Promise<{ zeilen: TrialZeile[]; akt
     .map(a => {
       const z = zugangById.get(a.demo_zugang_id) ?? zugangByEmail.get(String(a.email).toLowerCase()) ?? null
       const uid = z?.s112_user_id as string | undefined
+      // s112LetzteAnmeldungen liefert nur Einträge für existierende Benutzer – fehlt der Eintrag, wurde das Konto in software:112 gelöscht
+      const kontoFehlt = !!uid && anmeldungenGeladen && !anmeldungen.has(uid)
       return {
         id: a.id, zeit: a.erstellt_am, name: (z?.name as string | null) ?? null, firma: a.firma_name || '–', email: a.email,
         ergebnis: a.ergebnis, hinweis: a.hinweis ?? null, firmaId: a.firma_id ?? null,
         gueltigBis: (z?.gueltig_bis as string | null) ?? null, zugangStatus: (z?.status as string | null) ?? null,
         letzteAnmeldung: (uid ? anmeldungen.get(uid) : null) ?? (z?.letzte_anmeldung as string | null) ?? null,
+        kontoFehlt,
       }
     })
   const seit24h = Date.now() - 24 * 3600 * 1000
@@ -184,7 +189,9 @@ export default async function MorgenberichtKarte({ tenantId }: { tenantId: strin
                     </p>
                     <p className="text-[11.5px] text-hs-text-2 truncate">
                       {t.email}
-                      {t.ergebnis === 'erfolgreich' && (t.letzteAnmeldung ? ` · zuletzt angemeldet ${fmtZeitpunkt(t.letzteAnmeldung)}` : ' · noch nicht angemeldet')}
+                      {t.ergebnis === 'erfolgreich' && (t.kontoFehlt
+                        ? <span className="text-hs-warn-fg"> · Konto in software:112 nicht mehr vorhanden</span>
+                        : t.letzteAnmeldung ? ` · zuletzt angemeldet ${fmtZeitpunkt(t.letzteAnmeldung)}` : ' · noch nicht angemeldet')}
                       {t.gueltigBis && t.zugangStatus === 'aktiv' && ` · gültig bis ${fmtDatum(t.gueltigBis)}`}
                       {t.ergebnis !== 'erfolgreich' && t.hinweis && ` · ${t.hinweis}`}
                     </p>

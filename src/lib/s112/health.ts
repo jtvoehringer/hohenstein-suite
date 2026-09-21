@@ -139,6 +139,23 @@ export async function s112Health(): Promise<S112Health> {
   }
 }
 
+/**
+ * Letzte Anmeldung je software:112-Benutzer – wie s112LetzteAnmeldungen, aber mit
+ * Erfolgsstatus: nur bei ok=true bedeutet ein fehlender Eintrag, dass das Konto
+ * in software:112 nicht (mehr) existiert (z. B. nach einem kurzen Test gelöscht).
+ */
+export async function s112BenutzerAnmeldungen(userIds: string[]): Promise<{ ok: boolean; map: Map<string, string | null> }> {
+  const map = new Map<string, string | null>()
+  if (userIds.length === 0) return { ok: true, map }
+  if (!s112Konfiguriert()) return { ok: false, map }
+  try {
+    const { data, error } = await s112Admin().auth.admin.listUsers({ perPage: 1000 })
+    if (error) return { ok: false, map }
+    for (const u of data?.users ?? []) if (userIds.includes(u.id)) map.set(u.id, u.last_sign_in_at ?? null)
+    return { ok: true, map }
+  } catch { return { ok: false, map } }
+}
+
 function fmtZeit(iso: string): string {
   return new Date(iso).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Vienna' })
 }
