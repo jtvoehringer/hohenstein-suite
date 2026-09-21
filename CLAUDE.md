@@ -26,6 +26,11 @@
 - Serientermine (Migration 014): Termine mit Wiederholung (täglich/wöchentlich/14-tägig/monatlich, Enddatum Pflicht, max. 2 Jahre)
   werden beim Anlegen als materialisierte Einzeltermine mit gemeinsamer `serie_id` + `serie_regel` erzeugt (createAktivitaet);
   Bearbeiten/Verschieben wirkt je Instanz, Löschen bietet „diesen / ab diesem / ganze Serie" (deleteAktivitaetSerie).
+- Morgenbericht auf der Übersicht (/dashboard, nur Hohenstein-Mandant, Schreibberechtigte; `dashboard/MorgenberichtKarte.tsx`, per Suspense
+  gestreamt): links Testzugänge über hohenstein-partner.at (`trial_anfragen` + `demo_zugaenge`, letzte 14 Tage, Bot-Ablehnungen ausgeblendet,
+  letzte Anmeldung via `s112LetzteAnmeldungen`), rechts Healthstatus software:112 (`src/lib/s112/health.ts`: App-Ping S112_APP_URL,
+  DB-Antwortzeit, aktive Mandanten/Stripe-Status, `system_ereignisse` 24 h inkl. Smoke-Test, `morgenberichte`-Cron heute vs. gestern,
+  offene `stripe_zahlungen_log`) mit Gesamtampel. Trial-API: /api/public/trial (Website-Formular → Firma/Kontakt/Demo-User/Mails).
 - Reporting (/reporting, Übersicht → Reporting): Unternehmens-Cockpit je Geschäftsjahr mit Stichtag – KPIs (Einnahmen/Aufwendungen/Ergebnis
   netto, Liquidität, Forderungen, Verbindlichkeiten), Vermögensübersicht als Nebenrechnung zur E&A (Anlagevermögen zu Buchwerten,
   Umlaufvermögen = Kontensalden + offene Ausgangsrechnungen, Verbindlichkeiten = offene Eingangsrechnungen + USt-Saldo-Schätzung),

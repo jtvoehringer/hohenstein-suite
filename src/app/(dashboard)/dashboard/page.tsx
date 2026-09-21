@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { TrendingUp, TrendingDown, Scale, Target, ListChecks, Plus, CalendarDays, AlertTriangle, FlaskConical } from 'lucide-react'
@@ -10,6 +11,7 @@ import { ladeMandantMitglieder } from '@/lib/aufgaben/mitglieder'
 import { Card, Tile, Empty, MehrLink, BarRow, Hinweis } from '@/components/dashboard/ui'
 import AufgabenKachel from '@/components/dashboard/AufgabenKachel'
 import { ladeDashboard, type R } from './_data'
+import MorgenberichtKarte, { MorgenberichtPlatzhalter } from './MorgenberichtKarte'
 
 export const metadata: Metadata = { title: 'Übersicht – Hohenstein Suite' }
 export const dynamic = 'force-dynamic'
@@ -48,6 +50,8 @@ export default async function DashboardPage() {
   const gruss = stunde < 11 ? 'Guten Morgen' : stunde < 17 ? 'Guten Tag' : 'Guten Abend'
   const datumLang = jetzt.toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const istDemo = !!(tenant as R | null)?.ist_demo
+  // Morgenbericht (Testzugänge + software:112-Health) nur für das Hohenstein-Team, nicht im Demo-Mandanten
+  const zeigeMorgenbericht = !istDemo && darfSchreiben
   const { kpi } = daten
 
   const maxMonat = Math.max(1, ...daten.monate.flatMap(m => [m.einnahmen, m.ausgaben]))
@@ -91,6 +95,13 @@ export default async function DashboardPage() {
             </Link>
           ))}
         </div>
+      )}
+
+      {/* ── Morgenbericht ────────────────────────────────────────────────── */}
+      {zeigeMorgenbericht && (
+        <Suspense fallback={<MorgenberichtPlatzhalter />}>
+          <MorgenberichtKarte tenantId={tenantId} />
+        </Suspense>
       )}
 
       {/* ── Kennzahlen ───────────────────────────────────────────────────── */}
