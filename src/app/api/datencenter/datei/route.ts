@@ -13,7 +13,7 @@ const GESPERRTE_ENDUNGEN = /\.(exe|msi|bat|cmd|com|scr|ps1|vbs|js|jar|dll|sh)$/i
 
 // POST /api/datencenter/datei – Upload in zwei Schritten (JSON), die Datei selbst geht
 // direkt aus dem Browser in den Bucket (signierte Upload-URL, s. src/lib/datencenter/upload.ts):
-//   { schritt: 'start',  name, size, type, ordner_id?, firma_id?, kontakt_id? } → { pfad, token }
+//   { schritt: 'start',  name, size, type, ordner_id?, firma_id?, kontakt_id?, aufgabe_id? } → { pfad, token }
 //   { schritt: 'fertig', pfad, name, size, type, ordner_id?, firma_id?, kontakt_id? } → Datensatz ablage_dateien
 // Der frühere Multipart-Upload über diese Function scheiterte an Vercels 4,5-MB-Body-Limit.
 export async function POST(req: NextRequest) {
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
   const ordnerId  = (body.ordner_id as string | null) || null
   const firmaId   = (body.firma_id as string | null) || null
   const kontaktId = (body.kontakt_id as string | null) || null
+  const aufgabeId = (body.aufgabe_id as string | null) || null
 
   // Zuordnungen gegen den Mandanten prüfen
   if (ordnerId) {
@@ -56,6 +57,10 @@ export async function POST(req: NextRequest) {
   if (kontaktId) {
     const { data } = await (supabase.from('kontakte') as any).select('id').eq('id', kontaktId).eq('tenant_id', tenantId).maybeSingle()
     if (!data) return NextResponse.json({ error: 'Kontakt nicht gefunden' }, { status: 404 })
+  }
+  if (aufgabeId) {
+    const { data } = await (supabase.from('aufgaben') as any).select('id').eq('id', aufgabeId).eq('tenant_id', tenantId).maybeSingle()
+    if (!data) return NextResponse.json({ error: 'Aufgabe nicht gefunden' }, { status: 404 })
   }
 
   // ── Schritt 1: signierte Upload-URL ──
@@ -83,13 +88,14 @@ export async function POST(req: NextRequest) {
         ordner_id:     ordnerId,
         firma_id:      firmaId,
         kontakt_id:    kontaktId,
+        aufgabe_id:    aufgabeId,
         dateiname:     name,
         dateityp:      typ,
         groesse_bytes: groesse,
         storage_pfad:  pfad,
         erstellt_von:  user.id,
       })
-      .select('id, dateiname, dateityp, groesse_bytes, ordner_id, firma_id, kontakt_id, erstellt_am')
+      .select('id, dateiname, dateityp, groesse_bytes, ordner_id, firma_id, kontakt_id, aufgabe_id, erstellt_am')
       .single()
 
     if (dbErr) {

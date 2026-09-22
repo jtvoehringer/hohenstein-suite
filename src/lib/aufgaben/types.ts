@@ -59,6 +59,8 @@ export type AufgabeRow = {
   kontakt_name?: string | null
   /** aus Join: firmen(name) */
   firma_name?: string | null
+  /** Dateianhänge (ablage_dateien.aufgabe_id, Migration 021) */
+  dateien?: { id: string; dateiname: string; dateityp: string | null; groesse_bytes: number | null; erstellt_am: string }[]
 }
 
 /** Mandantenmitglied zur Auswahl als Verantwortliche/r – bewusst ohne E-Mail */

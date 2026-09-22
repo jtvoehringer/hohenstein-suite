@@ -45,8 +45,9 @@
   zeigt „Ergebnis nach AfA" (= Ergebnis + Anlagenkäufe Kontenklasse 0 − AfA laut Verzeichnis). Buchwert-Semantik: AfA wird jährlich per
   31.12. gebucht, im laufenden Jahr gilt der Buchwert 1.1. Berechnung in `src/lib/ea/anlagen.ts`.
 - Datencenter (Migration 016): Tab /datencenter mit Ordnerbaum (`ablage_ordner`) + Dateien (`ablage_dateien`, Bucket `datencenter`, 50 MB);
-  Datei-Anhänge an Firmen/Kontakten laufen über dieselbe Ablage (firma_id/kontakt_id, Karte „Dateien" auf den Detailseiten,
-  im Datencenter unter „CRM-Anhänge"); Termine nutzen weiter `aktivitaet_dokumente`. Upload geht DIREKT aus dem Browser in den Bucket
+  Datei-Anhänge an Firmen/Kontakten/Aufgaben laufen über dieselbe Ablage (firma_id/kontakt_id/aufgabe_id – Migration 021, Karte
+  „Dateien"/„Anhänge" auf den Detailseiten bzw. im Aufgaben-Panel, `DateienKarte`; im Datencenter unter „Anhänge (CRM & Aufgaben)");
+  Termine nutzen weiter `aktivitaet_dokumente`. Upload geht DIREKT aus dem Browser in den Bucket
   (signierte Upload-URL, `src/lib/datencenter/upload.ts`, zweistufige JSON-API /api/datencenter/datei start/fertig) – Vercel-Functions
   nehmen nur 4,5 MB Body an; Download/Löschen über /api/datencenter/datei/[id]. Bucket ohne MIME-Allowlist (Migration 019), API sperrt ausführbare Dateien.
 - Gemeinsame Mailbox (Migration 015): zusätzlich zu den persönlichen Postfächern eine team-weite Verbindung je Mandant

@@ -11,7 +11,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 export const DATEI_MAX_BYTES = 50 * 1024 * 1024
 
-export type UploadZiel = { ordner_id?: string | null; firma_id?: string | null; kontakt_id?: string | null }
+export type UploadZiel = { ordner_id?: string | null; firma_id?: string | null; kontakt_id?: string | null; aufgabe_id?: string | null }
 export type UploadErgebnis = { ok: true; id: string } | { ok: false; error: string }
 
 async function api(body: Record<string, unknown>): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
@@ -23,7 +23,7 @@ async function api(body: Record<string, unknown>): Promise<{ ok: boolean; status
 export async function dateiHochladen(file: File, ziel: UploadZiel): Promise<UploadErgebnis> {
   if (file.size > DATEI_MAX_BYTES) return { ok: false, error: 'Datei zu groß (max. 50 MB)' }
   const typ = file.type || 'application/octet-stream'
-  const meta = { name: file.name, size: file.size, type: typ, ordner_id: ziel.ordner_id ?? null, firma_id: ziel.firma_id ?? null, kontakt_id: ziel.kontakt_id ?? null }
+  const meta = { name: file.name, size: file.size, type: typ, ordner_id: ziel.ordner_id ?? null, firma_id: ziel.firma_id ?? null, kontakt_id: ziel.kontakt_id ?? null, aufgabe_id: ziel.aufgabe_id ?? null }
 
   const start = await api({ schritt: 'start', ...meta })
   if (!start.ok) return { ok: false, error: String(start.json.error ?? `Upload konnte nicht gestartet werden (${start.status})`) }

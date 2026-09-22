@@ -16,11 +16,12 @@ export type AblageDatei = {
   ordner_id: string | null
   firma_id: string | null
   kontakt_id: string | null
+  aufgabe_id: string | null
   dateiname: string
   dateityp: string | null
   groesse_bytes: number | null
   erstellt_am: string
-  /** Name der verknüpften Firma bzw. des Kontakts (CRM-Anhänge) */
+  /** Name der verknüpften Firma, des Kontakts oder der Aufgabe (Anhänge) */
   verknuepfung: string | null
 }
 
@@ -74,7 +75,7 @@ export default function DatencenterClient({
   }, [ordner])
 
   const byId = useMemo(() => new Map(ordner.map(o => [o.id, o])), [ordner])
-  const crmDateien = useMemo(() => dateien.filter(d => d.firma_id || d.kontakt_id), [dateien])
+  const crmDateien = useMemo(() => dateien.filter(d => d.firma_id || d.kontakt_id || d.aufgabe_id), [dateien])
 
   const aktuellerOrdnerId = ansicht.typ === 'ordner' ? ansicht.id : null
   const breadcrumb = useMemo(() => {
@@ -92,7 +93,7 @@ export default function DatencenterClient({
       return dateien.filter(d => (d.dateiname + ' ' + (d.verknuepfung ?? '')).toLowerCase().includes(q))
     }
     if (ansicht.typ === 'crm') return crmDateien
-    return dateien.filter(d => (d.ordner_id ?? null) === ansicht.id && !d.firma_id && !d.kontakt_id)
+    return dateien.filter(d => (d.ordner_id ?? null) === ansicht.id && !d.firma_id && !d.kontakt_id && !d.aufgabe_id)
   }, [dateien, crmDateien, ansicht, q])
 
   const sichtbareOrdner = q ? [] : (ansicht.typ === 'ordner' ? (kinder.get(ansicht.id) ?? []) : [])
@@ -242,7 +243,7 @@ export default function DatencenterClient({
               className={`w-full flex items-center gap-2 py-1.5 px-2.5 text-left text-[13px] rounded-md transition-colors ${ansicht.typ === 'crm' ? 'bg-hs-blue-50 text-hs-blue-700 font-semibold' : 'text-hs-text-1 hover:bg-hs-bg'}`}
               title="Dateien, die an Firmen oder Kontakten hängen">
               <Paperclip size={15} strokeWidth={1.75} />
-              <span className="flex-1">CRM-Anhänge</span>
+              <span className="flex-1">Anhänge (CRM & Aufgaben)</span>
               <span className="font-mono text-[11px] text-hs-tertiary">{crmDateien.length}</span>
             </button>
           </div>
@@ -254,7 +255,7 @@ export default function DatencenterClient({
             {/* Breadcrumb */}
             <nav className="flex items-center gap-1 text-[13px] flex-1 min-w-0 flex-wrap">
               {ansicht.typ === 'crm' ? (
-                <span className="font-semibold text-hs-text">CRM-Anhänge</span>
+                <span className="font-semibold text-hs-text">Anhänge (CRM & Aufgaben)</span>
               ) : (
                 <>
                   <button onClick={() => setAnsicht({ typ: 'ordner', id: null })} className={breadcrumb.length === 0 ? 'font-semibold text-hs-text' : 'text-hs-text-2 hover:text-hs-blue-700'}>Ablage</button>

@@ -28,7 +28,7 @@ export default async function AufgabenPage({ searchParams }: { searchParams: Pro
 
   const vor30Tagen = new Date(Date.now() - 30 * 86400000).toISOString()
 
-  const [{ data: offen }, { data: erledigt }, mitglieder, kontakte, firmen] = await Promise.all([
+  const [{ data: offen }, { data: erledigt }, mitglieder, kontakte, firmen, { data: anhaengeRaw }] = await Promise.all([
     (supabase.from('aufgaben') as any)
       .select('id, titel, beschreibung, status, prioritaet, verantwortlich_id, faellig_am, kontakt_id, firma_id, bereich, erledigt_am, erstellt_von, erstellt_am, aktualisiert_am, kontakte(vorname, nachname), firmen(name)')
       .eq('tenant_id', tenantId).neq('status', 'erledigt')
@@ -41,7 +41,16 @@ export default async function AufgabenPage({ searchParams }: { searchParams: Pro
     // alle Kontakte/Firmen (kein Limit – PostgREST-Cap über alleZeilen), für die Typeahead-Suche im Formular
     alleZeilen(() => (supabase.from('kontakte') as any).select('id, vorname, nachname, firmen:firma_id(name)').eq('tenant_id', tenantId).eq('aktiv', true).order('nachname').order('vorname').order('id')),
     alleZeilen(() => (supabase.from('firmen') as any).select('id, name, plz, ort').eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
+    // Dateianhänge (Migration 021) – gleiche Ablage wie Firmen/Kontakte
+    (supabase.from('ablage_dateien') as any).select('id, aufgabe_id, dateiname, dateityp, groesse_bytes, erstellt_am')
+      .eq('tenant_id', tenantId).not('aufgabe_id', 'is', null).order('erstellt_am', { ascending: false }),
   ])
+  const anhaenge = new Map<string, NonNullable<AufgabeRow['dateien']>>()
+  for (const d of (anhaengeRaw ?? []) as R[]) {
+    const liste = anhaenge.get(d.aufgabe_id) ?? []
+    liste.push({ id: d.id, dateiname: d.dateiname, dateityp: d.dateityp ?? null, groesse_bytes: d.groesse_bytes == null ? null : Number(d.groesse_bytes), erstellt_am: d.erstellt_am })
+    anhaenge.set(d.aufgabe_id, liste)
+  }
 
   const mapRow = (a: R): AufgabeRow => {
     const k = a.kontakte as R | null
@@ -50,6 +59,7 @@ export default async function AufgabenPage({ searchParams }: { searchParams: Pro
       ...(a as AufgabeRow),
       kontakt_name: k ? [k.vorname, k.nachname].filter(Boolean).join(' ') : null,
       firma_name: f?.name ?? null,
+      dateien: anhaenge.get(a.id) ?? [],
     }
   }
   const aufgaben = [...((offen ?? []) as R[]), ...((erledigt ?? []) as R[])].map(mapRow)

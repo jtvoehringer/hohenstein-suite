@@ -3,7 +3,7 @@
 // ── Aufgabenverwaltung (Client): Board/Liste, Filter, Panel zum Anlegen/Bearbeiten
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, LayoutGrid, List, Play, Check, RotateCcw, X, Trash2, Pencil, Search, Building2, User } from 'lucide-react'
+import { Plus, LayoutGrid, List, Play, Check, RotateCcw, X, Trash2, Pencil, Search, Building2, User, Paperclip } from 'lucide-react'
 import { fmtDatum } from '@/lib/format'
 import {
   AUFGABE_BEREICHE, AUFGABE_PRIORITAET, AUFGABE_STATUS, bereichLabel, faelligkeit,
@@ -11,6 +11,7 @@ import {
 } from '@/lib/aufgaben/types'
 import { StatusPill, PrioPunkt, FaelligAm } from '@/components/aufgaben/AufgabePills'
 import KundenSuche from '@/components/crm/KundenSuche'
+import DateienKarte from '@/components/crm/DateienKarte'
 import { speichereAufgabeAction, setzeAufgabeStatusAction, loescheAufgabeAction, type AufgabeInput } from './actions'
 
 type Option = { id: string; name: string; sub?: string | null }
@@ -241,7 +242,10 @@ export default function AufgabenClient({ aufgaben, mitglieder, kontakte, firmen,
                     onClick={() => { setPanel({ modus: 'bearbeiten', id: a.id }); setFehler(null) }}>
                     <td className="px-4 py-2.5"><PrioPunkt prioritaet={a.prioritaet} /></td>
                     <td className="px-2 py-2.5">
-                      <span className={`block font-medium ${a.status === 'erledigt' ? 'text-hs-text-2' : 'text-hs-text'}`}>{a.titel}</span>
+                      <span className={`block font-medium ${a.status === 'erledigt' ? 'text-hs-text-2' : 'text-hs-text'}`}>
+                        {a.titel}
+                        {(a.dateien?.length ?? 0) > 0 && <span className="ml-1.5 inline-flex items-center gap-0.5 text-[11px] font-normal text-hs-text-2 align-middle" title={`${a.dateien!.length} ${a.dateien!.length === 1 ? 'Anhang' : 'Anhänge'}`}><Paperclip size={11} strokeWidth={1.75} />{a.dateien!.length}</span>}
+                      </span>
                       {(a.firma_name || a.kontakt_name) && (
                         <span className="block text-[11.5px] text-hs-text-2">{[a.firma_name, a.kontakt_name].filter(Boolean).join(' · ')}</span>
                       )}
@@ -314,6 +318,11 @@ function AufgabeKarte({ a, name, heute, darfSchreiben, isPending, onOpen, onStat
         <div className="flex items-start gap-2">
           <PrioPunkt prioritaet={a.prioritaet} className="mt-[6px]" />
           <span className={`text-[13px] font-medium leading-snug ${a.status === 'erledigt' ? 'text-hs-text-2' : 'text-hs-text'}`}>{a.titel}</span>
+          {(a.dateien?.length ?? 0) > 0 && (
+            <span className="ml-auto shrink-0 inline-flex items-center gap-0.5 text-[11px] text-hs-text-2" title={`${a.dateien!.length} ${a.dateien!.length === 1 ? 'Anhang' : 'Anhänge'}`}>
+              <Paperclip size={11} strokeWidth={1.75} />{a.dateien!.length}
+            </span>
+          )}
         </div>
         {(a.firma_name || a.kontakt_name) && (
           <p className="text-[11.5px] text-hs-text-2 mt-1 pl-4 truncate flex items-center gap-1">
@@ -388,7 +397,8 @@ function AufgabePanel({ aufgabe, mitglieder, kontakte, firmen, userId, darfSchre
           </button>
         </div>
 
-        <form id="aufgabe-form" onSubmit={speichern} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <form id="aufgabe-form" onSubmit={speichern} className="space-y-4">
           <div>
             <label className="form-label">Titel *</label>
             <input value={form.titel} onChange={e => set('titel', e.target.value)} className="input" required autoFocus={!aufgabe} disabled={nurLesen} placeholder="Was ist zu tun?" />
@@ -452,6 +462,14 @@ function AufgabePanel({ aufgabe, mitglieder, kontakte, firmen, userId, darfSchre
           )}
           {fehler && <p className="text-sm text-hs-err-fg">{fehler}</p>}
         </form>
+
+        {/* Dateianhänge (Migration 021) – erst nach dem Anlegen möglich, da die Aufgaben-ID gebraucht wird */}
+        {aufgabe ? (
+          <DateienKarte titel="Anhänge" dateien={aufgabe.dateien ?? []} aufgabeId={aufgabe.id} writeOk={darfSchreiben} />
+        ) : (
+          <p className="text-[11.5px] text-hs-tertiary inline-flex items-center gap-1.5"><Paperclip size={12} strokeWidth={1.75} /> Dateien lassen sich anhängen, sobald die Aufgabe angelegt ist.</p>
+        )}
+        </div>
 
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-hs-line bg-hs-bg">
           <div>

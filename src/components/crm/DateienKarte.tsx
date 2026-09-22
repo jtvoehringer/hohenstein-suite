@@ -1,6 +1,6 @@
 'use client'
 
-// ── Dateien an Firma/Kontakt (Ablage im Datencenter, Bucket datencenter) ──────
+// ── Dateien an Firma/Kontakt/Aufgabe (Ablage im Datencenter, Bucket datencenter) ──
 // Upload direkt in den Bucket (lib/datencenter/upload), Download/Löschen über /api/datencenter/datei; die Dateien erscheinen
 // im Datencenter unter „CRM-Anhänge".
 
@@ -20,12 +20,14 @@ export type KarteDatei = {
 }
 
 export default function DateienKarte({
-  dateien, firmaId, kontaktId, writeOk,
+  dateien, firmaId, kontaktId, aufgabeId, writeOk, titel = 'Dateien',
 }: {
   dateien: KarteDatei[]
   firmaId?: string | null
   kontaktId?: string | null
+  aufgabeId?: string | null
   writeOk: boolean
+  titel?: string
 }) {
   const router = useRouter()
   const [uploading, setUploading] = useState(0)
@@ -40,7 +42,7 @@ export default function DateienKarte({
     const fehlgeschlagen: string[] = []
     for (const f of files) {
       try {
-        const res = await dateiHochladen(f, { firma_id: firmaId, kontakt_id: kontaktId })
+        const res = await dateiHochladen(f, { firma_id: firmaId, kontakt_id: kontaktId, aufgabe_id: aufgabeId })
         if (!res.ok) fehlgeschlagen.push(`${f.name}: ${res.error}`)
       } catch (err) { fehlgeschlagen.push(`${f.name}: ${err instanceof Error ? err.message : 'Upload fehlgeschlagen'}`) }
       setUploading(n => n - 1)
@@ -60,10 +62,10 @@ export default function DateienKarte({
     <div className="bg-white rounded-xl border border-hs-line p-4 space-y-2.5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm inline-flex items-center gap-1.5">
-          <Paperclip size={14} strokeWidth={1.75} className="text-hs-text-2" />Dateien ({dateien.length})
+          <Paperclip size={14} strokeWidth={1.75} className="text-hs-text-2" />{titel} ({dateien.length})
         </h2>
         {writeOk && (
-          <button onClick={() => fileInput.current?.click()} disabled={uploading > 0}
+          <button type="button" onClick={() => fileInput.current?.click()} disabled={uploading > 0}
             className="text-xs font-medium text-hs-blue-700 hover:underline inline-flex items-center gap-1">
             {uploading > 0 ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} strokeWidth={2} />}
             {uploading > 0 ? `Lade hoch (${uploading}) …` : 'Hochladen'}
@@ -74,7 +76,7 @@ export default function DateienKarte({
       {fehler && (
         <p className="text-xs text-hs-err-fg flex items-start justify-between gap-2">
           <span>{fehler}</span>
-          <button onClick={() => setFehler(null)}><X size={12} /></button>
+          <button type="button" onClick={() => setFehler(null)}><X size={12} /></button>
         </p>
       )}
       {dateien.length === 0 ? (
@@ -90,7 +92,7 @@ export default function DateienKarte({
               <span className="font-mono text-[10.5px] text-hs-tertiary shrink-0 tabular-nums hidden sm:inline">{fmtBytes(d.groesse_bytes)} · {fmtDatum(d.erstellt_am)}</span>
               <a href={`/api/datencenter/datei/${d.id}`} title="Herunterladen" className="text-hs-tertiary hover:text-hs-blue-700 p-0.5"><Download size={13} strokeWidth={1.75} /></a>
               {writeOk && (
-                <button onClick={() => handleLoeschen(d)} title="Löschen" className="text-hs-tertiary hover:text-hs-err p-0.5">
+                <button type="button" onClick={() => handleLoeschen(d)} title="Löschen" className="text-hs-tertiary hover:text-hs-err p-0.5">
                   <Trash2 size={13} strokeWidth={1.75} />
                 </button>
               )}
