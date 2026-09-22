@@ -74,7 +74,7 @@ export async function ladeDashboard(tenantId: string): Promise<DashboardDaten> {
     q('ea_transaktionen').select('typ, datum, betrag_netto').eq('tenant_id', tenantId).gte('datum', ladenAb).lte('datum', heute),
     q('pipeline_eintraege').select('stufe, wert_euro').eq('tenant_id', tenantId).eq('erledigt', false).neq('stufe', 'verloren'),
     q('aufgaben')
-      .select('id, titel, beschreibung, status, prioritaet, verantwortlich_id, faellig_am, kontakt_id, firma_id, bereich, erledigt_am, erstellt_von, erstellt_am, aktualisiert_am')
+      .select('id, titel, beschreibung, status, prioritaet, verantwortlich_id, fuer_alle, faellig_am, kontakt_id, firma_id, bereich, erledigt_am, erstellt_von, erstellt_am, aktualisiert_am')
       .eq('tenant_id', tenantId)
       .or(`status.neq.erledigt,erledigt_am.gte.${vor7Tagen}`)
       .order('faellig_am', { ascending: true, nullsFirst: false })

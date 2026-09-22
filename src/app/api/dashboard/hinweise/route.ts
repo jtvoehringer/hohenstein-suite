@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership } from '@/lib/auth/roles'
 import { fmtDatum, fmtEuroMitZeichen as fmtEuro, heuteIso } from '@/lib/format'
-import type { Hinweis } from '@/components/layout/Topbar'
+import type { Hinweis, Benachrichtigung } from '@/components/layout/Topbar'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,14 +13,15 @@ type R = Record<string, any>
 // überfällige/heute fällige Aufgaben, offene Termine von heute, Daueraufträge mit Fehlern
 export async function GET() {
   const membership = await getCurrentMembership()
-  if (!membership) return NextResponse.json({ hinweise: [] }, { status: 401 })
+  if (!membership) return NextResponse.json({ hinweise: [], benachrichtigungen: [] }, { status: 401 })
   const tenantId = membership.tenantId
   const supabase = await createSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const heute = heuteIso()
   const in7 = new Date(); in7.setDate(in7.getDate() + 7)
   const in7Iso = in7.toISOString().slice(0, 10)
 
-  const [{ data: aufgaben }, { data: termine }, { data: fehler }, { data: eingang }, { data: ausgang }] = await Promise.all([
+  const [{ data: aufgaben }, { data: termine }, { data: fehler }, { data: eingang }, { data: ausgang }, { data: benachr }] = await Promise.all([
     (supabase.from('aufgaben') as any)
       .select('id, titel, faellig_am, status').eq('tenant_id', tenantId).neq('status', 'erledigt')
       .not('faellig_am', 'is', null).lte('faellig_am', in7Iso).order('faellig_am').limit(20),
@@ -38,7 +39,16 @@ export async function GET() {
     (supabase.from('belege') as any)
       .select('id, nummer, empf_name, faellig_am, summe_brutto, bezahlt_betrag').eq('tenant_id', tenantId).eq('belegart', 'rechnung')
       .in('status', ['gestellt', 'teilbezahlt']).lt('faellig_am', heute).order('faellig_am').limit(20),
+    // Ungelesene Benachrichtigungen (Zuweisung, @Erwähnung, Team-Aufgabe) – Migration 022
+    user
+      ? (supabase.from('benachrichtigungen') as any)
+          .select('id, art, titel, text, href, erstellt_am').eq('empfaenger_id', user.id).eq('tenant_id', tenantId)
+          .is('gelesen_am', null).order('erstellt_am', { ascending: false }).limit(30)
+      : Promise.resolve({ data: [] }),
   ])
+  const benachrichtigungen: Benachrichtigung[] = ((benachr ?? []) as R[]).map(b => ({
+    id: b.id, art: b.art, titel: b.titel, text: b.text ?? null, href: b.href ?? '/aufgaben', erstellt_am: b.erstellt_am,
+  }))
 
   const hinweise: Hinweis[] = []
   for (const a of (aufgaben ?? []) as R[]) {
@@ -83,5 +93,5 @@ export async function GET() {
   for (const f of (fehler ?? []) as R[]) {
     hinweise.push({ key: `da:${f.id}`, titel: 'Dauerauftrag fehlgeschlagen', detail: f.fehler_details ?? '', href: '/buchhaltung/dauerauftraege', tone: 'err' })
   }
-  return NextResponse.json({ hinweise })
+  return NextResponse.json({ hinweise, benachrichtigungen })
 }

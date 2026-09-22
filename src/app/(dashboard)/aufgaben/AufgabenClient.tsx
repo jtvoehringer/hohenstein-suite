@@ -30,7 +30,14 @@ interface Props {
 
 const LEER_FORM: AufgabeInput = {
   titel: '', beschreibung: '', status: 'offen', prioritaet: 'normal',
-  verantwortlich_id: '', faellig_am: '', bereich: '', kontakt_id: '', firma_id: '',
+  verantwortlich_id: '', fuer_alle: false, faellig_am: '', bereich: '', kontakt_id: '', firma_id: '',
+}
+/** Sonderwert im Verantwortlich-Select: Aufgabe für das ganze Team */
+const ALLE = '__alle__'
+/** Anzeigename des/der Verantwortlichen (inkl. „Alle") */
+function verantwortlichName(a: AufgabeRow, namen: Map<string, string>): string | null {
+  if (a.fuer_alle) return 'Alle'
+  return a.verantwortlich_id ? (namen.get(a.verantwortlich_id) ?? 'Unbekannt') : null
 }
 
 export default function AufgabenClient({ aufgaben, mitglieder, kontakte, firmen, userId, darfSchreiben, heute, initial }: Props) {
@@ -80,10 +87,10 @@ export default function AufgabenClient({ aufgaben, mitglieder, kontakte, firmen,
   const gefiltert = useMemo(() => {
     const s = suche.trim().toLowerCase()
     return aufgaben.filter(a => {
-      if (fVerantwortlich === 'niemand' ? a.verantwortlich_id !== null : fVerantwortlich && a.verantwortlich_id !== fVerantwortlich) return false
+      if (fVerantwortlich === 'niemand' ? (a.verantwortlich_id !== null || a.fuer_alle) : fVerantwortlich === ALLE ? !a.fuer_alle : fVerantwortlich && a.verantwortlich_id !== fVerantwortlich && !a.fuer_alle) return false
       if (fBereich && a.bereich !== fBereich) return false
       if (fStatus && a.status !== fStatus) return false
-      if (nurMeine && a.verantwortlich_id !== userId) return false
+      if (nurMeine && a.verantwortlich_id !== userId && !a.fuer_alle) return false
       if (nurUeberfaellig && faelligkeit(a.faellig_am, a.status, heute) !== 'ueberfaellig') return false
       if (s && !`${a.titel} ${a.beschreibung ?? ''} ${a.kontakt_name ?? ''} ${a.firma_name ?? ''}`.toLowerCase().includes(s)) return false
       return true
@@ -153,6 +160,7 @@ export default function AufgabenClient({ aufgaben, mitglieder, kontakte, firmen,
         </div>
         <select value={fVerantwortlich} onChange={e => setFVerantwortlich(e.target.value)} className="input !w-auto !py-1.5" aria-label="Verantwortlich">
           <option value="">Alle Verantwortlichen</option>
+          <option value={ALLE}>Team-Aufgaben (Alle)</option>
           <option value="niemand">Nicht zugewiesen</option>
           {mitglieder.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
@@ -201,7 +209,7 @@ export default function AufgabenClient({ aufgaben, mitglieder, kontakte, firmen,
                   <ul className="space-y-2">
                     {liste.map(a => (
                       <li key={a.id}>
-                        <AufgabeKarte a={a} name={a.verantwortlich_id ? (namen.get(a.verantwortlich_id) ?? 'Unbekannt') : null} heute={heute}
+                        <AufgabeKarte a={a} name={verantwortlichName(a, namen)} heute={heute}
                           darfSchreiben={darfSchreiben} isPending={isPending}
                           onOpen={() => { setPanel({ modus: 'bearbeiten', id: a.id }); setFehler(null) }}
                           onStatus={s => statusSetzen(a.id, s)} />
@@ -251,7 +259,7 @@ export default function AufgabenClient({ aufgaben, mitglieder, kontakte, firmen,
                       )}
                     </td>
                     <td className="px-2 py-2.5 text-hs-text-2 text-[12.5px]">{a.bereich ? bereichLabel(a.bereich) : '–'}</td>
-                    <td className="px-2 py-2.5 text-[12.5px]">{a.verantwortlich_id ? (namen.get(a.verantwortlich_id) ?? 'Unbekannt') : <span className="text-hs-tertiary">–</span>}</td>
+                    <td className="px-2 py-2.5 text-[12.5px]">{verantwortlichName(a, namen) ?? <span className="text-hs-tertiary">–</span>}</td>
                     <td className="px-2 py-2.5"><FaelligAm faelligAm={a.faellig_am} status={a.status} heuteIso={heute} kurz /></td>
                     <td className="px-2 py-2.5"><StatusPill status={a.status} /></td>
                     <td className="px-4 py-2.5 text-right" onClick={e => e.stopPropagation()}>
@@ -360,7 +368,7 @@ function AufgabePanel({ aufgabe, mitglieder, kontakte, firmen, userId, darfSchre
 }) {
   const [form, setForm] = useState<AufgabeInput>(() => aufgabe ? {
     id: aufgabe.id, titel: aufgabe.titel, beschreibung: aufgabe.beschreibung ?? '', status: aufgabe.status, prioritaet: aufgabe.prioritaet,
-    verantwortlich_id: aufgabe.verantwortlich_id ?? '', faellig_am: aufgabe.faellig_am ?? '', bereich: aufgabe.bereich ?? '',
+    verantwortlich_id: aufgabe.fuer_alle ? ALLE : (aufgabe.verantwortlich_id ?? ''), fuer_alle: aufgabe.fuer_alle, faellig_am: aufgabe.faellig_am ?? '', bereich: aufgabe.bereich ?? '',
     kontakt_id: aufgabe.kontakt_id ?? '', firma_id: aufgabe.firma_id ?? '',
   } : { ...LEER_FORM, verantwortlich_id: userId ?? '' })
   const [saving, setSaving] = useState(false)
@@ -378,7 +386,7 @@ function AufgabePanel({ aufgabe, mitglieder, kontakte, firmen, userId, darfSchre
     e.preventDefault()
     if (nurLesen) return
     setSaving(true); setFehler(null)
-    const res = await speichereAufgabeAction(form)
+    const res = await speichereAufgabeAction({ ...form, verantwortlich_id: form.fuer_alle ? '' : form.verantwortlich_id })
     setSaving(false)
     if (res.fehler) setFehler(res.fehler)
     else onSaved()
@@ -405,7 +413,7 @@ function AufgabePanel({ aufgabe, mitglieder, kontakte, firmen, userId, darfSchre
           </div>
           <div>
             <label className="form-label">Beschreibung</label>
-            <textarea value={form.beschreibung ?? ''} onChange={e => set('beschreibung', e.target.value)} className="input min-h-[90px]" disabled={nurLesen} />
+            <textarea value={form.beschreibung ?? ''} onChange={e => set('beschreibung', e.target.value)} className="input min-h-[90px]" disabled={nurLesen} placeholder="Details … mit @Name lässt sich jemand aus dem Team benachrichtigen" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -422,10 +430,14 @@ function AufgabePanel({ aufgabe, mitglieder, kontakte, firmen, userId, darfSchre
             </div>
             <div>
               <label className="form-label">Verantwortlich</label>
-              <select value={form.verantwortlich_id ?? ''} onChange={e => set('verantwortlich_id', e.target.value)} className="input" disabled={nurLesen}>
+              <select value={form.verantwortlich_id ?? ''} onChange={e => setForm(f => ({ ...f, verantwortlich_id: e.target.value, fuer_alle: e.target.value === ALLE }))} className="input" disabled={nurLesen}>
                 <option value="">– Niemand –</option>
+                <option value={ALLE}>– Alle –</option>
                 {mitglieder.map(m => <option key={m.id} value={m.id}>{m.name}{m.id === userId ? ' (ich)' : ''}</option>)}
               </select>
+              {!nurLesen && !aufgabe && form.verantwortlich_id && form.verantwortlich_id !== userId && (
+                <p className="text-[11px] text-hs-text-2 mt-1">{form.fuer_alle ? 'Alle Team-Mitglieder werden benachrichtigt.' : 'Die Person wird per Glocke und E-Mail benachrichtigt.'}</p>
+              )}
             </div>
             <div>
               <label className="form-label">Zu erledigen bis</label>

@@ -5,10 +5,11 @@ import { Check, X } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { profilSpeichernAction } from './actions'
 
-export default function ProfilForm({ email, fullName: initialName, telefon: initialTelefon }: { email: string; fullName: string; telefon: string }) {
+export default function ProfilForm({ email, fullName: initialName, telefon: initialTelefon, benachrichtigungEmail: initialMail = true }: { email: string; fullName: string; telefon: string; benachrichtigungEmail?: boolean }) {
   const router = useRouter()
   const [fullName, setFullName] = useState(initialName)
   const [telefon, setTelefon]   = useState(initialTelefon)
+  const [mailBenachr, setMailBenachr] = useState(initialMail)
   const [saving, setSaving]     = useState(false)
   const [erfolg, setErfolg]     = useState('')
   const [fehler, setFehler]     = useState('')
@@ -18,7 +19,7 @@ export default function ProfilForm({ email, fullName: initialName, telefon: init
   async function speichern(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true); setFehler(''); setErfolg('')
-    const res = await profilSpeichernAction({ full_name: fullName, telefon })
+    const res = await profilSpeichernAction({ full_name: fullName, telefon, benachrichtigung_email: mailBenachr })
     if (res?.fehler) setFehler(res.fehler)
     else { setErfolg('Profil gespeichert'); router.refresh() }
     setSaving(false)
@@ -49,6 +50,10 @@ export default function ProfilForm({ email, fullName: initialName, telefon: init
           <label className="form-label">Telefon</label>
           <input value={telefon} onChange={e => setTelefon(e.target.value)} placeholder="+43 664 …" className="input" />
         </div>
+        <label className="flex items-start gap-2 text-sm text-hs-text cursor-pointer select-none bg-hs-bg border border-hs-line rounded-lg px-4 py-3">
+          <input type="checkbox" checked={mailBenachr} onChange={e => setMailBenachr(e.target.checked)} className="accent-hs-teal mt-0.5" />
+          <span>E-Mail-Benachrichtigungen<span className="block text-xs text-hs-text-2">Bei Aufgaben-Zuweisung, Team-Aufgaben und @Erwähnungen zusätzlich zur Glocke eine E-Mail erhalten.</span></span>
+        </label>
         <div className="flex items-center gap-3 pt-1">
           <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Speichern …' : 'Profil speichern'}</button>
         </div>

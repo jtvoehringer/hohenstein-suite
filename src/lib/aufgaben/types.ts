@@ -47,6 +47,8 @@ export type AufgabeRow = {
   status: AufgabeStatus
   prioritaet: AufgabePrioritaet
   verantwortlich_id: string | null
+  /** Aufgabe für das ganze Team (Migration 022) */
+  fuer_alle: boolean
   faellig_am: string | null
   kontakt_id: string | null
   firma_id: string | null

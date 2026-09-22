@@ -31,6 +31,13 @@
   letzte Anmeldung via `s112LetzteAnmeldungen`), rechts Healthstatus software:112 (`src/lib/s112/health.ts`: App-Ping S112_APP_URL,
   DB-Antwortzeit, aktive Mandanten/Stripe-Status, `system_ereignisse` 24 h inkl. Smoke-Test, `morgenberichte`-Cron heute vs. gestern,
   offene `stripe_zahlungen_log`) mit Gesamtampel. Trial-API: /api/public/trial (Website-Formular → Firma/Kontakt/Demo-User/Mails).
+- Benachrichtigungen (Migration 022, `src/lib/benachrichtigungen/server.ts`): Ereignisse „Aufgabe zugewiesen", „Aufgabe für alle"
+  (`aufgaben.fuer_alle`, Verantwortlich „– Alle –") und „@Erwähnung" (Vorname oder voller Name der Team-Mitglieder in Aufgaben-
+  Beschreibung und Termin-Beschreibung, nur neue Erwähnungen beim Bearbeiten) werden über Kanäle zugestellt: App (Tabelle
+  `benachrichtigungen`, Glocke in der Kopfleiste über /api/dashboard/hinweise, gelesen via POST /api/benachrichtigungen) und E-Mail
+  (Brevo, `sendeSystemMail`; je Benutzer abschaltbar über `profiles.benachrichtigung_email` im Profil). Empfänger-Mails über
+  RPC `mandant_mitglieder_mit_email` (nur Service-Role). Auslöser wird nie selbst benachrichtigt; Zustellung ist best effort.
+  WhatsApp als weiterer Kanal wäre über die Meta WhatsApp Business Cloud API ergänzbar (Kanal-Liste in `Ereignis.kanaele`).
 - Reporting (/reporting, Übersicht → Reporting): Unternehmens-Cockpit je Geschäftsjahr mit Stichtag – KPIs (Einnahmen/Aufwendungen/Ergebnis
   netto, Liquidität, Forderungen, Verbindlichkeiten), Vermögensübersicht als Nebenrechnung zur E&A (Anlagevermögen zu Buchwerten,
   Umlaufvermögen = Kontensalden + offene Ausgangsrechnungen, Verbindlichkeiten = offene Eingangsrechnungen + USt-Saldo-Schätzung),

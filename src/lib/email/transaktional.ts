@@ -81,6 +81,11 @@ export async function sendeAllgemeineKontaktBenachrichtigung(input: { name: stri
   await Promise.all(empfaenger.map(e => sende(e, `Neue Kontaktanfrage: ${input.name}`, text, html)))
 }
 
-function esc(s: string): string {
+/** Allgemeine System-Mail (z. B. Team-Benachrichtigungen aus src/lib/benachrichtigungen) */
+export async function sendeSystemMail(an: string, betreff: string, text: string, html: string): Promise<void> {
+  await sende(an, betreff, text, html)
+}
+
+export function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }

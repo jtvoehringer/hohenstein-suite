@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, Bell, LogOut, User, ChevronDown, FlaskConical, Building2, Check } from 'lucide-react'
+import { Search, Bell, LogOut, User, ChevronDown, FlaskConical, Building2, Check, AtSign, UserCheck, Users, CheckCheck } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { wechsleMandantAction } from '@/lib/auth/mandantActions'
 import type { MandantKontext, MandantOption } from '@/app/(dashboard)/layout'
@@ -21,6 +21,18 @@ export const PALETTE_EVENT  = 'hs:palette'
 export const HINWEISE_EVENT = 'hs:hinweise'
 
 export type Hinweis = { key: string; titel: string; detail: string; href: string; tone: 'warn' | 'err' }
+/** Persönliche Benachrichtigung (Migration 022): Zuweisung, @Erwähnung, Team-Aufgabe */
+export type Benachrichtigung = { id: string; art: string; titel: string; text: string | null; href: string; erstellt_am: string }
+
+function zeitKurz(iso: string): string {
+  const d = new Date(iso), jetzt = Date.now()
+  const min = Math.round((jetzt - d.getTime()) / 60000)
+  if (min < 1) return 'gerade eben'
+  if (min < 60) return `vor ${min} min`
+  const h = Math.round(min / 60)
+  if (h < 24) return `vor ${h} h`
+  return d.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })
+}
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -45,6 +57,7 @@ export default function Topbar({ userEmail, userName, roleLabel, mandant, mandan
   const mandantRef = useRef<HTMLDivElement>(null)
   const displayName = userName || userEmail
   const [hinweise, setHinweise] = useState<Hinweis[] | null>(null)
+  const [benachr, setBenachr] = useState<Benachrichtigung[]>([])
 
   useEffect(() => {
     let aktiv = true
@@ -53,7 +66,7 @@ export default function Topbar({ userEmail, userName, roleLabel, mandant, mandan
         const res = await fetch('/api/dashboard/hinweise', { cache: 'no-store' })
         if (!res.ok) return
         const json = await res.json()
-        if (aktiv) setHinweise(Array.isArray(json.hinweise) ? json.hinweise : [])
+        if (aktiv) { setHinweise(Array.isArray(json.hinweise) ? json.hinweise : []); setBenachr(Array.isArray(json.benachrichtigungen) ? json.benachrichtigungen : []) }
       } catch { /* Netzfehler: alten Stand behalten */ }
     }
     void laden()
@@ -61,8 +74,17 @@ export default function Topbar({ userEmail, userName, roleLabel, mandant, mandan
     window.addEventListener(HINWEISE_EVENT, laden)
     return () => { aktiv = false; clearInterval(t); window.removeEventListener(HINWEISE_EVENT, laden) }
   }, [])
-  const anzahl = hinweise?.length ?? 0
+  const anzahl = (hinweise?.length ?? 0) + benachr.length
   const anzahlErr = hinweise?.filter(h => h.tone === 'err').length ?? 0
+
+  async function gelesen(ids: string[] | 'alle') {
+    const vorher = benachr
+    setBenachr(ids === 'alle' ? [] : benachr.filter(b => !ids.includes(b.id)))
+    try {
+      const res = await fetch('/api/benachrichtigungen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids === 'alle' ? { alle: true } : { ids }) })
+      if (!res.ok) setBenachr(vorher)
+    } catch { setBenachr(vorher) }
+  }
 
   useEffect(() => {
     if (!menuOpen && !notifOpen && !mandantOpen) return
@@ -140,7 +162,7 @@ export default function Topbar({ userEmail, userName, roleLabel, mandant, mandan
               aria-label={anzahl ? `${anzahl} Hinweise` : 'Hinweise'} title={anzahl ? `${anzahl} offene Hinweise` : 'Hinweise'}>
               <Bell size={17} strokeWidth={1.5} />
               {anzahl > 0 && (
-                <span className={`absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full font-mono text-[10px] font-semibold leading-[17px] text-center text-white ${anzahlErr > 0 ? 'bg-hs-err' : 'bg-hs-warn'}`}>
+                <span className={`absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full font-mono text-[10px] font-semibold leading-[17px] text-center text-white ${anzahlErr > 0 ? 'bg-hs-err' : benachr.length > 0 && (hinweise?.length ?? 0) === 0 ? 'bg-hs-teal' : 'bg-hs-warn'}`}>
                   {anzahl > 99 ? '99+' : anzahl}
                 </span>
               )}
@@ -151,10 +173,33 @@ export default function Topbar({ userEmail, userName, roleLabel, mandant, mandan
                   <p className="text-xs font-semibold">Hinweise</p>
                   <Link href="/aufgaben" onClick={() => setNotifOpen(false)} className="text-[11.5px] text-hs-blue-700 hover:underline">alle Aufgaben →</Link>
                 </div>
+                {benachr.length > 0 && (
+                  <div className="border-b border-hs-line bg-hs-blue-50/40">
+                    <div className="flex items-center justify-between px-3.5 pt-2 pb-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-hs-blue-700">Für dich</p>
+                      <button type="button" onClick={() => void gelesen('alle')} className="text-[11px] text-hs-text-2 hover:text-hs-blue-700 inline-flex items-center gap-1"><CheckCheck size={12} /> alle gelesen</button>
+                    </div>
+                    <ul className="max-h-[40vh] overflow-y-auto pb-1">
+                      {benachr.map(b => (
+                        <li key={b.id} className="flex items-start gap-2 px-3.5 py-2 hover:bg-white/70">
+                          <span className="mt-0.5 text-hs-blue-700 shrink-0">
+                            {b.art === 'erwaehnung' ? <AtSign size={13} strokeWidth={2} /> : b.art === 'aufgabe_alle' ? <Users size={13} strokeWidth={2} /> : <UserCheck size={13} strokeWidth={2} />}
+                          </span>
+                          <Link href={b.href} onClick={() => { setNotifOpen(false); void gelesen([b.id]) }} className="min-w-0 flex-1">
+                            <span className="block text-[12.5px] font-medium truncate">{b.titel}</span>
+                            {b.text && <span className="block text-[11px] text-hs-text-2 truncate">{b.text}</span>}
+                            <span className="block text-[10.5px] text-hs-tertiary">{zeitKurz(b.erstellt_am)}</span>
+                          </Link>
+                          <button type="button" onClick={() => void gelesen([b.id])} title="Als gelesen markieren" className="shrink-0 text-hs-tertiary hover:text-hs-blue-700 p-0.5"><Check size={13} /></button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {hinweise === null ? (
                   <p className="px-3.5 py-4 text-xs text-hs-tertiary">Wird geladen …</p>
                 ) : hinweise.length === 0 ? (
-                  <p className="px-3.5 py-4 text-xs text-hs-tertiary">Nichts Dringendes – keine fälligen Aufgaben oder Termine.</p>
+                  <p className="px-3.5 py-4 text-xs text-hs-tertiary">{benachr.length === 0 ? 'Nichts Dringendes – keine fälligen Aufgaben oder Termine.' : 'Keine fälligen Aufgaben oder Termine.'}</p>
                 ) : (
                   <ul className="max-h-[60vh] overflow-y-auto py-1">
                     {hinweise.map(h => (

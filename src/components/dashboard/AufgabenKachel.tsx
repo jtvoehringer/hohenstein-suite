@@ -72,7 +72,7 @@ export default function AufgabenKachel({ aufgaben, mitglieder, heute, darfSchrei
                           {a.titel}
                         </Link>
                         <p className="text-[11.5px] text-hs-text-2 truncate">
-                          <span title="Verantwortlich">{a.verantwortlich_id ? (namen.get(a.verantwortlich_id) ?? 'Unbekannt') : 'Niemand zugewiesen'}</span>
+                          <span title="Verantwortlich">{a.fuer_alle ? 'Alle' : a.verantwortlich_id ? (namen.get(a.verantwortlich_id) ?? 'Unbekannt') : 'Niemand zugewiesen'}</span>
                           <span className="text-hs-line-str mx-1.5">·</span>
                           <FaelligAm faelligAm={a.faellig_am} status={a.status} heuteIso={heute} />
                         </p>

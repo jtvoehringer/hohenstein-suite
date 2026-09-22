@@ -30,11 +30,11 @@ export default async function AufgabenPage({ searchParams }: { searchParams: Pro
 
   const [{ data: offen }, { data: erledigt }, mitglieder, kontakte, firmen, { data: anhaengeRaw }] = await Promise.all([
     (supabase.from('aufgaben') as any)
-      .select('id, titel, beschreibung, status, prioritaet, verantwortlich_id, faellig_am, kontakt_id, firma_id, bereich, erledigt_am, erstellt_von, erstellt_am, aktualisiert_am, kontakte(vorname, nachname), firmen(name)')
+      .select('id, titel, beschreibung, status, prioritaet, verantwortlich_id, fuer_alle, faellig_am, kontakt_id, firma_id, bereich, erledigt_am, erstellt_von, erstellt_am, aktualisiert_am, kontakte(vorname, nachname), firmen(name)')
       .eq('tenant_id', tenantId).neq('status', 'erledigt')
       .order('faellig_am', { ascending: true, nullsFirst: false }).order('erstellt_am', { ascending: false }),
     (supabase.from('aufgaben') as any)
-      .select('id, titel, beschreibung, status, prioritaet, verantwortlich_id, faellig_am, kontakt_id, firma_id, bereich, erledigt_am, erstellt_von, erstellt_am, aktualisiert_am, kontakte(vorname, nachname), firmen(name)')
+      .select('id, titel, beschreibung, status, prioritaet, verantwortlich_id, fuer_alle, faellig_am, kontakt_id, firma_id, bereich, erledigt_am, erstellt_von, erstellt_am, aktualisiert_am, kontakte(vorname, nachname), firmen(name)')
       .eq('tenant_id', tenantId).eq('status', 'erledigt').gte('erledigt_am', vor30Tagen)
       .order('erledigt_am', { ascending: false }).limit(100),
     ladeMandantMitglieder(tenantId),
@@ -59,6 +59,7 @@ export default async function AufgabenPage({ searchParams }: { searchParams: Pro
       ...(a as AufgabeRow),
       kontakt_name: k ? [k.vorname, k.nachname].filter(Boolean).join(' ') : null,
       firma_name: f?.name ?? null,
+      fuer_alle: !!a.fuer_alle,
       dateien: anhaenge.get(a.id) ?? [],
     }
   }

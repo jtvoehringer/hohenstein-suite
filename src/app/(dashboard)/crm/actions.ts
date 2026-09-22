@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import { parseProdukte, type ProduktEintrag } from '@/lib/crm/types'
+import { ladeMandantMitglieder } from '@/lib/aufgaben/mitglieder'
+import { sendeBenachrichtigung, neueErwaehnungen } from '@/lib/benachrichtigungen/server'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
@@ -495,21 +497,42 @@ export async function createAktivitaet(fd: FormData): Promise<ActionResult> {
       const { data, error } = await (supabase.from('aktivitaeten') as any)
         .insert(zeilen).select('id').limit(1)
       if (error) return { error: (error as R).message }
+      const ersteId = ((data as R[] | null) ?? [])[0]?.id as string | undefined
+      await benachrichtigeErwaehnungTermin({ tenantId, userId, payload, vorherText: null, id: ersteId ?? null })
       revalidateCrm()
-      return { id: ((data as R[] | null) ?? [])[0]?.id }
+      return { id: ersteId }
     }
 
     const { data, error } = await (supabase.from('aktivitaeten') as any)
       .insert(payload).select('id').single()
     if (error) return { error: (error as R).message }
+    await benachrichtigeErwaehnungTermin({ tenantId, userId, payload, vorherText: null, id: (data as R | null)?.id ?? null })
     revalidateCrm()
     return { id: (data as R | null)?.id }
   } catch (err) { return fehler(err) }
 }
 
+/** @Erwähnungen in der Beschreibung eines Termins/einer Notiz → Benachrichtigung (nur neue Erwähnungen) */
+async function benachrichtigeErwaehnungTermin(a: { tenantId: string; userId: string | null; payload: R; vorherText: string | null; id: string | null }) {
+  try {
+    const text = (a.payload.beschreibung as string | null) ?? null
+    if (!text || !text.includes('@')) return
+    const mitglieder = await ladeMandantMitglieder(a.tenantId)
+    const erwaehnt = neueErwaehnungen(text, a.vorherText, mitglieder)
+    if (erwaehnt.length === 0) return
+    const datum = a.payload.datum ? new Date(String(a.payload.datum) + 'T00:00:00').toLocaleDateString('de-AT') : null
+    await sendeBenachrichtigung({
+      tenantId: a.tenantId, empfaengerIds: erwaehnt, ausgeloestVon: a.userId, art: 'erwaehnung',
+      titel: `Erwähnung in Termin: ${a.payload.betreff || 'ohne Betreff'}${datum ? ` (${datum})` : ''}`,
+      text: text.slice(0, 500), href: a.payload.datum ? `/crm?datum=${a.payload.datum}` : '/crm',
+      quelleTyp: 'aktivitaet', quelleId: a.id,
+    })
+  } catch (err) { console.error('benachrichtigeErwaehnungTermin:', err) }
+}
+
 export async function updateAktivitaet(id: string, fd: FormData): Promise<ActionResult> {
   try {
-    const { tenantId } = await requireWrite()
+    const { tenantId, userId } = await requireWrite()
     const supabase = await createSupabaseServerClient()
     const payload = aktivitaetPayload(fd)
     // Nur mitgesendete Felder ändern (Mini-Formulare schicken z.B. nur betreff)
@@ -521,9 +544,18 @@ export async function updateAktivitaet(id: string, fd: FormData): Promise<Action
     if (!fd.has('ganztags') && !fd.has('uhrzeit_von')) {
       delete payload.ganztags; delete payload.uhrzeit_von; delete payload.uhrzeit_bis
     }
+    // Vorheriger Text für neue @Erwähnungen
+    let vorher: R | null = null
+    if (payload.beschreibung !== undefined) {
+      const { data } = await (supabase.from('aktivitaeten') as any).select('beschreibung, betreff, datum').eq('id', id).eq('tenant_id', tenantId).maybeSingle()
+      vorher = (data as R | null) ?? null
+    }
     const { error } = await (supabase.from('aktivitaeten') as any)
       .update(payload).eq('id', id).eq('tenant_id', tenantId)
     if (error) return { error: (error as R).message }
+    if (payload.beschreibung !== undefined) {
+      await benachrichtigeErwaehnungTermin({ tenantId, userId, payload: { ...vorher, ...payload }, vorherText: vorher?.beschreibung ?? null, id })
+    }
     revalidateCrm()
     return { id }
   } catch (err) { return fehler(err) }
