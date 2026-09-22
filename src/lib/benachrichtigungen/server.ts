@@ -57,15 +57,17 @@ export async function sendeBenachrichtigung(e: Ereignis): Promise<void> {
   const vonName = mitglieder.find(m => m.user_id === e.ausgeloestVon)?.name ?? null
 
   // ── Kanal App ──
-  let zeilenIds = new Map<string, string>()
+  // IDs vorab erzeugen und OHNE .select() einfügen: die Zeilen gehören den Empfängern,
+  // ein RETURNING würde an deren SELECT-Policy (empfaenger_id = auth.uid()) scheitern.
+  const zeilenIds = new Map<string, string>(empfaenger.map(id => [id, crypto.randomUUID()]))
   if (kanaele.includes('app')) {
     try {
       const supabase = await createSupabaseServerClient()
-      const { data } = await (supabase.from('benachrichtigungen') as any).insert(empfaenger.map(id => ({
-        tenant_id: e.tenantId, empfaenger_id: id, ausgeloest_von: e.ausgeloestVon, art: e.art,
+      const { error } = await (supabase.from('benachrichtigungen') as any).insert(empfaenger.map(id => ({
+        id: zeilenIds.get(id), tenant_id: e.tenantId, empfaenger_id: id, ausgeloest_von: e.ausgeloestVon, art: e.art,
         titel: e.titel, text: e.text ?? null, href: e.href ?? null, quelle_typ: e.quelleTyp ?? null, quelle_id: e.quelleId ?? null,
-      }))).select('id, empfaenger_id')
-      zeilenIds = new Map(((data ?? []) as R[]).map(z => [z.empfaenger_id as string, z.id as string]))
+      })))
+      if (error) { console.error('benachrichtigungen (app):', (error as R).message); zeilenIds.clear() }
     } catch (err) { console.error('benachrichtigungen (app):', err) }
   }
 
