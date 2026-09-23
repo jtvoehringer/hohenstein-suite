@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { sendeAllgemeineKontaktBenachrichtigung, transaktionalKonfiguriert } from '@/lib/email/transaktional'
 import { findeBestehendeFirma } from '@/lib/public/firmaMatch'
+import { bereinige, bereinigeText, bereinigeTelefon, istGueltigeEmail, enthaeltLinkOderMarkup, bereinigeIp } from '@/lib/public/eingabe'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,12 +24,11 @@ function corsHeaders(req: NextRequest): HeadersInit {
 }
 export async function OPTIONS(req: NextRequest) { return new NextResponse(null, { status: 204, headers: corsHeaders(req) }) }
 function json(req: NextRequest, body: R, status = 200) { return NextResponse.json(body, { status, headers: corsHeaders(req) }) }
-function istGueltigeEmail(email: string): boolean { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) }
 
 export async function POST(req: NextRequest) {
   const admin = createSupabaseAdminClient()
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unbekannt'
-  const userAgent = req.headers.get('user-agent') ?? null
+  const ip = bereinigeIp(req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip'))
+  const userAgent = bereinige(req.headers.get('user-agent'), 300) || null
   async function protokolliere(felder: Partial<R>) {
     try { await (admin.from('trial_anfragen') as any).insert({ ip, user_agent: userAgent, herkunft: 'hohenstein-partner.at:kontakt', ...felder }) } catch { /* best effort */ }
   }
@@ -39,16 +39,20 @@ export async function POST(req: NextRequest) {
   const honeypot = String(body.website_url ?? '').trim()
   const ts = Number(body.ts ?? 0)
   if (honeypot || !ts || Date.now() - ts < 3000) {
-    await protokolliere({ email: String(body.email ?? ''), firma_name: String(body.firma ?? ''), ergebnis: 'abgelehnt', hinweis: 'Bot-Filter (Honeypot/Zeit)' })
+    await protokolliere({ email: bereinige(body.email, 254), firma_name: bereinige(body.firma, 120), ergebnis: 'abgelehnt', hinweis: 'Bot-Filter (Honeypot/Zeit)' })
     return json(req, { ok: true })
   }
 
-  const email = String(body.email ?? '').trim().toLowerCase()
-  const name = String(body.name ?? '').trim()
-  const firmaName = body.firma ? String(body.firma).trim() : null
-  const telefon = body.telefon ? String(body.telefon).trim() : null
-  const nachricht = String(body.nachricht ?? '').trim().slice(0, 4000)
+  const email = bereinige(body.email, 254).toLowerCase()
+  const name = bereinige(body.name, 80)
+  const firmaName = bereinige(body.firma, 120) || null
+  const telefon = bereinigeTelefon(body.telefon)
+  const nachricht = bereinigeText(body.nachricht, 4000)
 
+  if (enthaeltLinkOderMarkup(name) || (firmaName && enthaeltLinkOderMarkup(firmaName))) {
+    await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Link/Markup in Name oder Firma' })
+    return json(req, { ok: false, fehler: 'Bitte in Name und Betrieb keine Links angeben.' }, 400)
+  }
   if (!email || !istGueltigeEmail(email) || !name || !nachricht) {
     await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Pflichtfelder fehlen/ungültig' })
     return json(req, { ok: false, fehler: 'Bitte Name, eine gültige E-Mail-Adresse und eine Nachricht angeben.' }, 400)

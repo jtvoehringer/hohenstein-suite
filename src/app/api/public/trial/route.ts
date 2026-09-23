@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { s112DemoUserAnlegen, demoPasswort, s112Konfiguriert, S112_APP_URL } from '@/lib/s112/admin'
 import { sendeTrialZugangMail, sendeInterneTrialBenachrichtigung, transaktionalKonfiguriert } from '@/lib/email/transaktional'
 import { findeBestehendeFirma, accountManagerName } from '@/lib/public/firmaMatch'
+import { bereinige, bereinigeText, bereinigeTelefon, istGueltigeEmail, enthaeltLinkOderMarkup, bereinigeIp } from '@/lib/public/eingabe'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,8 @@ const TRIAL_DAUER_TAGE = Number(process.env.TRIAL_DAUER_TAGE ?? 14)
 // hier auf 'winzer' ändern, sobald ein Ablauf zur Bereinigung/Isolation steht.
 const TRIAL_ROLLE: 'winzer' | 'leser' = 'leser'
 const MAX_ANFRAGEN_PRO_TAG = 3
+// Schutz gegen massenhaftes Anlegen von Demo-Benutzern (z. B. verteilte Bots mit vielen IPs/E-Mails)
+const MAX_TRIALS_GESAMT_PRO_TAG = Number(process.env.TRIAL_MAX_PRO_TAG ?? 40)
 
 function corsHeaders(req: NextRequest): HeadersInit {
   const erlaubt = (process.env.TRIAL_ALLOWED_ORIGINS ?? '').split(',').map(s => s.trim()).filter(Boolean)
@@ -38,14 +41,11 @@ function json(req: NextRequest, body: R, status = 200) {
   return NextResponse.json(body, { status, headers: corsHeaders(req) })
 }
 
-function istGueltigeEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
 
 export async function POST(req: NextRequest) {
   const admin = createSupabaseAdminClient()
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unbekannt'
-  const userAgent = req.headers.get('user-agent') ?? null
+  const ip = bereinigeIp(req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip'))
+  const userAgent = bereinige(req.headers.get('user-agent'), 300) || null
 
   async function protokolliere(felder: Partial<R>) {
     try { await (admin.from('trial_anfragen') as any).insert({ ip, user_agent: userAgent, ...felder }) } catch { /* Protokoll ist best effort */ }
@@ -59,17 +59,23 @@ export async function POST(req: NextRequest) {
   const honeypot = String(body.website_url ?? '').trim()
   const ts = Number(body.ts ?? 0)
   if (honeypot || !ts || Date.now() - ts < 3000) {
-    await protokolliere({ email: String(body.email ?? ''), firma_name: String(body.firma ?? ''), ergebnis: 'abgelehnt', hinweis: 'Bot-Filter (Honeypot/Zeit)' })
+    await protokolliere({ email: bereinige(body.email, 254), firma_name: bereinige(body.firma, 120), ergebnis: 'abgelehnt', hinweis: 'Bot-Filter (Honeypot/Zeit)' })
     // Bewusst ein "Erfolg" nach außen, damit ein Bot keinen Rückschluss auf den Filter ziehen kann.
     return json(req, { ok: true })
   }
 
-  const email = String(body.email ?? '').trim().toLowerCase()
-  const name = String(body.name ?? '').trim()
-  const firmaName = String(body.firma ?? '').trim()
-  const telefon = body.telefon ? String(body.telefon).trim() : null
-  const nachricht = body.nachricht ? String(body.nachricht).trim().slice(0, 2000) : null
+  const email = bereinige(body.email, 254).toLowerCase()
+  const name = bereinige(body.name, 80)
+  const firmaName = bereinige(body.firma, 120)
+  const telefon = bereinigeTelefon(body.telefon)
+  const nachricht = bereinigeText(body.nachricht, 2000) || null
 
+  // Name/Firma landen in der Bestätigungsmail an die angegebene Adresse – keine Links zulassen,
+  // sonst ließe sich über unser Formular Werbung/Phishing an Dritte verschicken.
+  if (enthaeltLinkOderMarkup(name) || enthaeltLinkOderMarkup(firmaName)) {
+    await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Link/Markup in Name oder Firma' })
+    return json(req, { ok: false, fehler: 'Bitte in Name und Betrieb keine Links angeben.' }, 400)
+  }
   if (!email || !istGueltigeEmail(email) || !name || !firmaName) {
     await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Pflichtfelder fehlen/ungültig' })
     return json(req, { ok: false, fehler: 'Bitte Firma, Name und eine gültige E-Mail-Adresse angeben.' }, 400)
@@ -88,6 +94,13 @@ export async function POST(req: NextRequest) {
   if ((count ?? 0) >= MAX_ANFRAGEN_PRO_TAG) {
     await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Rate-Limit erreicht' })
     return json(req, { ok: false, fehler: 'Zu viele Anfragen. Bitte später erneut versuchen oder direkt Kontakt aufnehmen.' }, 429)
+  }
+  const { count: trialsHeute } = await (admin.from('trial_anfragen') as any)
+    .select('id', { count: 'exact', head: true })
+    .gte('erstellt_am', seit24h).eq('ergebnis', 'erfolgreich').eq('herkunft', 'hohenstein-partner.at')
+  if ((trialsHeute ?? 0) >= MAX_TRIALS_GESAMT_PRO_TAG) {
+    await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Tageslimit aller Trials erreicht' })
+    return json(req, { ok: false, fehler: 'Heute sind keine weiteren Testzugänge verfügbar. Bitte über das Kontaktformular melden – wir schalten Sie gerne manuell frei.' }, 429)
   }
 
   try {
