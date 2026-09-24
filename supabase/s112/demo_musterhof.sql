@@ -286,6 +286,10 @@ begin
         'verkauf', p_id, v_konto, p_firma, true, 'Automatisch erzeugt aus Zahlungseingang (Verkauf)', v_zdatum::timestamptz, v_zdatum::timestamptz);
     end loop;
   end if;
+  -- Rückdatierten Änderungszeitpunkt wiederherstellen: Zahlungs-Sync und bezahlt_am-Update
+  -- oben lösen den Trigger verkaufsposten_updated_at aus (24.09.2026)
+  update verkaufsposten set aktualisiert_am = p_datum::timestamptz
+  where id = p_id and tenant_id = c_t and aktualisiert_am is distinct from p_datum::timestamptz;
 end $$;
 
 -- Kosteneintrag mit anteiliger Verteilung auf Weingärten (nach ha) oder Behälter (nach Volumen)
@@ -381,12 +385,14 @@ declare
   v_c6 uuid; v_c5 uuid; v_c8 uuid; v_c10 uuid; v_q integer; v_uva record; v_gesamt_kg numeric;
   v_letzter_monat date;
 begin
+  PERFORM set_config('s112.protokoll_aus', c_t::text, true);  -- KAN-35: Demo-Reset nicht protokollieren (nur Demo-Mandant)
   -- ── Sicherheitsprüfung ────────────────────────────────────────────────────
   if not exists (select 1 from tenants where id = c_t and slug = 'demo-musterhof') then
     raise exception 'Demo-Mandant % mit slug demo-musterhof nicht gefunden – Abbruch.', c_t;
   end if;
 
   -- ── Löschen (nur Demo-Mandant; Kind-Tabellen ohne tenant_id über Eltern) ──
+  delete from bestandsprotokoll where tenant_id = c_t;  -- KAN-35: Protokoll der Demo-Nutzung verwerfen
   delete from sumup_transaktionen where tenant_id = c_t;
   delete from sumup_checkouts where tenant_id = c_t;
   delete from sumup_terminals where tenant_id = c_t;
@@ -847,8 +853,14 @@ begin
     'Kremstal DAC', 750, 5800, 19.50, false, 'N ' || (10577 + y1 % 100) || '/' || (y1 % 100), null, 5.10, '22042193', 'Füllung Vorjahr – Restmenge bei Systemstart 700 Fl.');
   perform demo_musterhof_fuellen(demo_musterhof_id(19,1), null, make_date(y1,11,15), 'Musterhof Brut Sekt', y2, 'Chardonnay', 'sekt', 'wlnoe',
     'Kremstal', 750, 1600, 19.90, false, null, null, 7.90, '22041011', 'Traditionelle Flaschengärung (Lohnversektung), Grundwein Chardonnay/Weißburgunder ' || y2 || ' – degorgiert ' || y1);
+  insert into fuellung_bewegungen (tenant_id, fuellung_id, datum, art, menge_stk, bestand_vorher, bestand_nachher, grund)  -- KAN-35
+    select c_t, fu.id, coalesce(fu.datum, d), 'anfangsbestand', 1400 - fu.bestand_flaschen, fu.bestand_flaschen, 1400, 'Restbestand bei Systemstart (Verkäufe vor Einführung)'
+      from fuellungen fu where fu.id = demo_musterhof_id(19,2) and fu.tenant_id = c_t and fu.bestand_flaschen <> 1400;
   update fuellungen set bestand_flaschen = 1400 where id = demo_musterhof_id(19,2) and tenant_id = c_t;
-  update fuellungen set bestand_flaschen = 700  where id = demo_musterhof_id(19,3) and tenant_id = c_t;
+  insert into fuellung_bewegungen (tenant_id, fuellung_id, datum, art, menge_stk, bestand_vorher, bestand_nachher, grund)  -- KAN-35
+    select c_t, fu.id, coalesce(fu.datum, d), 'anfangsbestand', 700 - fu.bestand_flaschen, fu.bestand_flaschen, 700, 'Restbestand bei Systemstart (Verkäufe vor Einführung)'
+      from fuellungen fu where fu.id = demo_musterhof_id(19,3) and fu.tenant_id = c_t and fu.bestand_flaschen <> 700;
+  update fuellungen set bestand_flaschen = 700 where id = demo_musterhof_id(19,3) and tenant_id = c_t;
 
   -- ── Kellerbuch-Ablauf (chronologisch; jedes Ereignis nur, wenn Datum <= heute) ──
   -- KU1: Abstich GV Kremstal DAC vom Grobtrub, Stahltank 02 → Stahltank 01 (neue Charge 30)
@@ -1308,7 +1320,7 @@ begin
   -- ── Fristen (betriebseigen) und Lese-Checkliste ───────────────────────────
   for r in select * from (values
     (1, 'Mehrfachantrag (AMA) – Flächenmeldung',        'Flächenangaben Weingarten über eAMA · Frist bitte prüfen',                        'meldung',   make_date(y,4,15),   'jaehrlich', '/weingarten',            make_date(y,4,15) <= d,  make_date(y,4,11)),
-    (2, 'Bestandsmeldung Wein (Stichtag 31.07.)',        'Weinbestand aus dem Kellerbuch (Bestandsreport) · Meldung bis 15.08.',              'weinrecht', make_date(y,8,15),   'jaehrlich', '/reports/keller',        make_date(y,8,15) <= d,  make_date(y,8,12)),
+    (2, 'Bestandsmeldung Wein (Stichtag 31.07.)',        'Weinbestand aus dem Kellerbuch (Bestandsreport) · Meldung bis 15.08.',              'weinrecht', make_date(y,8,15),   'jaehrlich', '/reports/ama',        make_date(y,8,15) <= d,  make_date(y,8,12)),
     (3, 'Spritzgeräte-Überprüfung (PSM-Geräte-Pickerl)', 'Gebläsespritze zur wiederkehrenden Überprüfung bringen',                            'betrieb',   d + 9,               'einmalig',  '/behandlungen',          false, null),
     (4, 'Weinbaukataster: Flächenänderung melden',       'Rodung Sandgrube GST 1306 (0,25 ha Grünbrache) im Weinbaukataster nachtragen',     'meldung',   d + 21,              'einmalig',  '/weingarten',            false, null),
     (5, 'Inventur Flaschenlager',                        'Bestände je Füllung zählen und im Warenlager korrigieren',                          'betrieb',   d + 45,              'einmalig',  '/weinhandel',            false, null),
@@ -1408,6 +1420,7 @@ declare
   jg_y2 uuid := demo_musterhof_id(8, 1);
   r record; v_f record;
 begin
+  PERFORM set_config('s112.protokoll_aus', c_t::text, true);  -- KAN-35: Demo-Reset nicht protokollieren (nur Demo-Mandant)
   y1 := y - 1; y2 := y - 2;
 
   -- Aufräumen (idempotent)
