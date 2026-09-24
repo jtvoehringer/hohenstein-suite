@@ -1,6 +1,6 @@
 // ── E&A-Rechnung: gemeinsame Konstanten und Hilfsfunktionen ──────────────────
 // Bewusst ohne Server-Imports (client-tauglich). Spaltennamen lt.
-// supabase/migrations/003_ea.sql.
+// supabase/migrations_legacy/003_ea.sql.
 
 export type BuchungTyp = 'einnahme' | 'ausgabe'
 export type KategorieTyp = 'einnahme' | 'ausgabe' | 'beides'

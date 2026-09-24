@@ -42,7 +42,7 @@ Schreibweise (Jänner), Beträge `€ 1.234,56` (siehe `src/lib/format.ts`: `fmt
   Sandbox-Sonderlogik, `modul_*`-Toggles, `branding.primary_color`). Kein `lib/m365`, kein `lib/brevo`, kein `lib/stripe`.
 - Icons: `lucide-react`, 16–18px, strokeWidth 1.5–1.75. Keine Emojis.
 
-## Datenbank (Supabase-Projekt `usvniwfqozqkxdhjjumm`, Schema in `supabase/migrations/*.sql`)
+## Datenbank (Supabase-Projekt `usvniwfqozqkxdhjjumm`, Schema in `supabase/migrations_legacy/*.sql`, neue Migrationen in `supabase/migrations/`)
 Tabellen: `tenants(id,name,slug,ist_demo,active)`, `tenant_memberships(tenant_id,user_id,role,aktiv)`,
 `profiles(id,display_name,full_name,telefon,avatar_url)`, `tenant_einstellungen(tenant_id, anzeigename, logo_url, betrieb_*,
 kunden_prefix/zaehler/stellen, ust_satz_standard, ea_buchung_modus, ea_kleinunternehmer, ea_uva_zeitraum, ea_betriebsbeginn,
@@ -74,7 +74,7 @@ Ein Trigger verhindert Änderungen an gesperrten Buchungen (is_locked) – Fehle
 
 ## Qualität
 - Nach dem Portieren: `npx tsc --noEmit` muss ohne Fehler durchlaufen (nur eigene Dateien fixen).
-- Alle in `.select('…')`/`.insert({…})`/`.update({…})` verwendeten Spaltennamen gegen `supabase/migrations/*.sql` prüfen
+- Alle in `.select('…')`/`.insert({…})`/`.update({…})` verwendeten Spaltennamen gegen `supabase/migrations_legacy/*.sql` und `supabase/migrations/*.sql` prüfen
   (grep). Fehlende Spalten sind Laufzeitfehler, die tsc nicht findet!
 - Leere Zustände: ein Satz in `text-hs-text-2` + Primäraktion. Ladezustand: einfache `loading.tsx` optional.
 - Server Components mit `export const dynamic = 'force-dynamic'`.

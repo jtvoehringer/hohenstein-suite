@@ -1,0 +1,12 @@
+alter table firmen   add column if not exists produktkunde boolean not null default false;
+alter table firmen   add column if not exists produkte     jsonb   not null default '[]'::jsonb;
+alter table kontakte add column if not exists produktkunde boolean not null default false;
+alter table kontakte add column if not exists produkte     jsonb   not null default '[]'::jsonb;
+alter table firmen   drop constraint if exists firmen_produkte_array;
+alter table firmen   add  constraint firmen_produkte_array   check (jsonb_typeof(produkte) = 'array');
+alter table kontakte drop constraint if exists kontakte_produkte_array;
+alter table kontakte add  constraint kontakte_produkte_array check (jsonb_typeof(produkte) = 'array');
+comment on column firmen.produkte   is 'Produktkunde: [{produkt: software112|webpage|weinshop, kundennummer}]';
+comment on column kontakte.produkte is 'Produktkunde: [{produkt: software112|webpage|weinshop, kundennummer}]';
+create index if not exists idx_firmen_produkte   on firmen   using gin (produkte) where produktkunde;
+create index if not exists idx_kontakte_produkte on kontakte using gin (produkte) where produktkunde;;

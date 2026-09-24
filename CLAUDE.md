@@ -70,7 +70,10 @@
 - Navigation zentral in `src/lib/navigation/index.ts`; Layout `src/app/(dashboard)/layout.tsx`, Kopfleiste/TabNav in `src/components/layout/`.
 - DB-Funktionen: `set search_path = public`, `revoke execute from public, anon`, `pruefe_tenant_zugriff(p_tenant_id, rollen)` als erste Zeile.
 - Gesperrte Buchungen (`is_locked`) sind per Trigger geschützt; UVA erst nach Monatsabschlüssen (RPC `sperre_ea_uva`).
-- Details zur Portierung/Schema: `PORTIERUNG.md`, Migrationen in `supabase/migrations/`.
+- Details zur Portierung/Schema: `PORTIERUNG.md`.
+- Migrationen: `supabase/migrations/` enthält genau die Remote-Historie als `<version>_<name>.sql` (Version = Zeitstempel aus `supabase_migrations.schema_migrations`), Projekt-Ref `usvniwfqozqkxdhjjumm`. Die älteren, handnummerierten Dateien liegen unverändert in `supabase/migrations_legacy/` (bis 24.09.2026; „Migration 013“ usw. = diese Dateien).
+  Neue Migrationen per Supabase-MCP `apply_migration` mit `<name>` einspielen – nicht im SQL Editor, der schreibt keine Historie –, danach die von `list_migrations` gemeldete Version übernehmen und die Datei exakt als `supabase/migrations/<version>_<name>.sql` speichern; keine eigene Nummer oder Zeitstempel erfinden. Prüfen mit `npx supabase migration list` (lokal = remote).
+  Neuaufbau einer Datenbank: alle Dateien aus `migrations_legacy/` in Reihenfolge, danach nur die Dateien aus `migrations/` mit Version nach `20260923190450`.
 
 ## Arbeitsweise
 - Claude schreibt Code + SQL und spielt Migrationen direkt über den Supabase-MCP ein; geänderte Dateien liefert Claude direkt

@@ -40,8 +40,10 @@ npm run type-check
 ```
 
 ## Datenbank
-Migrationen liegen in `supabase/migrations/` (001–010; 007 Demo-Zugänge, 008 Fakturierung, 009 Verbindlichkeiten, 010 Demo-Team) und sind im Projekt bereits eingespielt. Neue Migrationen:
-Datei anlegen und im Supabase SQL Editor ausführen. Regeln: jede Funktion mit `set search_path = public`,
+Die handnummerierten Migrationen 001–023 (u. a. 007 Demo-Zugänge, 008 Fakturierung, 009 Verbindlichkeiten, 010 Demo-Team) liegen in
+`supabase/migrations_legacy/`, `supabase/migrations/` enthält die Remote-Historie als `<version>_<name>.sql` (Stand prüfen mit
+`npx supabase migration list`). Neue Migrationen: per Supabase-MCP `apply_migration` einspielen und die Datei mit der gemeldeten
+Version in `supabase/migrations/` ablegen (Details in `CLAUDE.md`), nicht im SQL Editor ausführen. Regeln: jede Funktion mit `set search_path = public`,
 `revoke execute … from public, anon`, RPCs mit `p_tenant_id` prüfen `pruefe_tenant_zugriff(...)`.
 
 ## Deployment

@@ -1,6 +1,6 @@
 // ── Fakturierung: Konstanten, Typen und Hilfsfunktionen ──────────────────────
 // Bewusst ohne Server-Imports (client-tauglich). Spaltennamen lt.
-// supabase/migrations/008_fakturierung.sql.
+// supabase/migrations_legacy/008_fakturierung.sql.
 
 export type Belegart = 'angebot' | 'rechnung' | 'gutschrift'
 export type UstModus = 'normal' | 'reverse_charge' | 'kleinunternehmer'
