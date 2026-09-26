@@ -471,7 +471,8 @@ begin
   -- Zähler / relative Einstellungen
   update tenant_einstellungen
      set rechnung_zaehler = 1, account_zaehler = 1, charge_zaehler = 1, liefernummer_zaehler = 0,
-         ea_betriebsbeginn = make_date(y1, 1, 1)
+         ea_betriebsbeginn = make_date(y1, 1, 1),
+         mostgewicht_einheit = 'kmw'  -- KAN-128: bevorzugte Einheit beim Reset zurück auf den Standard
    where tenant_id = c_t;
 
   insert into weinbaugebiete_custom (tenant_id, name, aktiv) values (c_t, 'Kremstal DAC', true);
@@ -655,8 +656,10 @@ begin
         case when r.dg is not null then demo_musterhof_id(5, r.dg) end,
         v_dt, case when r.mm2 is not null then make_date(v_jahr, r.mm2, r.dd2) end, r.art, r.witterung, r.temp, r.wind,
         r.aufwand, r.einheit, r.wasser, v_ha, r.bbch, r.schaderreger,
-        case when r.aufwand is not null then round(r.aufwand * v_ha, 3) end,
-        case when r.aufwand is not null then (case r.einheit when 'kg_ha' then 'kg' else 'l' end) end,
+        case when r.art = 'spritzung' then round(r.wasser * v_ha, 3)  -- KAN-133: Spritzbrühe (l) = Wasseraufwand × Fläche, nie die Mittelmenge
+             when r.aufwand is not null then round(r.aufwand * v_ha, 3) end,  -- Düngung: Düngermenge
+        case when r.art = 'spritzung' then (case when r.wasser is not null then 'l' end)
+             when r.aufwand is not null then (case r.einheit when 'kg_ha' then 'kg' else 'l' end) end,
         case when r.aufwand is not null and r.wasser is not null then round(r.aufwand / r.wasser * 100, 3) end,
         case when r.art = 'spritzung' then v_dt + p.wartezeit_tage end,
         case when r.art = 'spritzung' then true end,
