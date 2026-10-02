@@ -25,12 +25,22 @@ export const metadata: Metadata = {
       { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
       { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
     ],
-    apple: '/favicon-180.png',
+    apple: '/apple-touch-icon.png',
   },
+  // PWA: „Zum Home-Bildschirm" auf iPhone/iPad startet die Suite im Vollbild
+  // (ohne Safari-Leisten). Manifest siehe app/manifest.ts, Anleitung /installieren.
+  appleWebApp: {
+    capable: true,
+    title: 'Hohenstein',
+    statusBarStyle: 'black',
+  },
+  formatDetection: { telephone: false },
+  // Next schreibt nur noch „mobile-web-app-capable“ – ältere iOS-Versionen brauchen die Apple-Variante.
+  other: { 'apple-mobile-web-app-capable': 'yes' },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#4F86D6',
+  themeColor: '#22252B', // Anthrazit wie die Kopfleiste
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
