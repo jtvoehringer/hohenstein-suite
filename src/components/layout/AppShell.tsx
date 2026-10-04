@@ -34,7 +34,7 @@ export default function AppShell({ children, userEmail, userName, role, roleLabe
   const buildSha = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-hs-bg">
+    <div className="h-dvh flex flex-col overflow-hidden bg-hs-bg">
       <Topbar userEmail={userEmail} userName={userName} roleLabel={roleLabel} mandant={mandant} mandanten={mandanten} />
       <CommandPalette groups={groups} darfSchreiben={darfSchreiben} mandanten={mandanten} mandant={mandant} />
       <TabNav groups={groups} />
