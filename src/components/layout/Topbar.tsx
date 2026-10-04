@@ -20,6 +20,41 @@ export const PALETTE_EVENT  = 'hs:palette'
 /** Fordert die Topbar auf, die Hinweise neu zu laden */
 export const HINWEISE_EVENT = 'hs:hinweise'
 
+// Team-Channel in Slack (Workspace T0C6PCZ6QTE). Klick öffnet zuerst die
+// Slack-App per Deep-Link; ist sie nicht installiert (Seite bleibt sichtbar),
+// geht es nach kurzer Wartezeit auf den Web-Client.
+const SLACK_TEAM = 'T0C6PCZ6QTE'
+const SLACK_CHANNEL = 'C0C6DJ0DS2X'
+const SLACK_APP_URL = `slack://channel?team=${SLACK_TEAM}&id=${SLACK_CHANNEL}`
+const SLACK_WEB_URL = `https://app.slack.com/client/${SLACK_TEAM}/${SLACK_CHANNEL}`
+
+function oeffneSlack(e: React.MouseEvent<HTMLAnchorElement>) {
+  e.preventDefault()
+  const fallback = window.setTimeout(() => {
+    if (document.visibilityState === 'visible') window.open(SLACK_WEB_URL, '_blank', 'noopener')
+  }, 1500)
+  // Wechselt das Gerät in die Slack-App, wird die Seite unsichtbar → kein Fallback
+  document.addEventListener('visibilitychange', () => window.clearTimeout(fallback), { once: true })
+  window.location.href = SLACK_APP_URL
+}
+
+// Slack-Logo im Linienstil der übrigen Kopfleisten-Symbole (lucide hat keine Marken-Icons)
+function SlackIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect width="3" height="8" x="13" y="2" rx="1.5" />
+      <path d="M19 8.5V10h1.5A1.5 1.5 0 1 0 19 8.5" />
+      <rect width="3" height="8" x="8" y="14" rx="1.5" />
+      <path d="M5 15.5V14H3.5A1.5 1.5 0 1 0 5 15.5" />
+      <rect width="8" height="3" x="14" y="13" rx="1.5" />
+      <path d="M15.5 19H14v1.5a1.5 1.5 0 1 0 1.5-1.5" />
+      <rect width="8" height="3" x="2" y="8" rx="1.5" />
+      <path d="M8.5 5H10V3.5A1.5 1.5 0 1 0 8.5 5" />
+    </svg>
+  )
+}
+
 export type Hinweis = { key: string; titel: string; detail: string; href: string; tone: 'warn' | 'err' }
 /** Persönliche Benachrichtigung (Migration 022): Zuweisung, @Erwähnung, Team-Aufgabe */
 export type Benachrichtigung = { id: string; art: string; titel: string; text: string | null; href: string; erstellt_am: string }
@@ -154,6 +189,13 @@ export default function Topbar({ userEmail, userName, roleLabel, mandant, mandan
             <span className="hidden lg:inline">Suchen oder Befehl …</span>
             <kbd className="hidden md:inline font-mono text-[10.5px] text-white/60 border border-white/25 rounded-sm px-1.5 py-px">Strg K</kbd>
           </button>
+
+          {/* Slack-Channel des Teams */}
+          <a href={SLACK_WEB_URL} onClick={oeffneSlack} target="_blank" rel="noopener noreferrer"
+            className="w-8 h-8 flex items-center justify-center rounded-md text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+            aria-label="Slack-Channel öffnen" title="Slack-Channel öffnen">
+            <SlackIcon />
+          </a>
 
           {/* Hinweise */}
           <div className="relative" ref={notifRef}>
