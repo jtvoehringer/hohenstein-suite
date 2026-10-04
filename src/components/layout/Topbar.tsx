@@ -20,13 +20,15 @@ export const PALETTE_EVENT  = 'hs:palette'
 /** Fordert die Topbar auf, die Hinweise neu zu laden */
 export const HINWEISE_EVENT = 'hs:hinweise'
 
-// Team-Channel in Slack (Workspace T0C6PCZ6QTE). Klick öffnet zuerst die
-// Slack-App per Deep-Link; ist sie nicht installiert (Seite bleibt sichtbar),
-// geht es nach kurzer Wartezeit auf den Web-Client.
+// Team-Channel im Slack-Workspace icp-consultants.slack.com (Team T0C6PCZ6QTE).
+// Klick öffnet zuerst die Slack-App per Deep-Link; ist sie nicht installiert
+// (Seite bleibt sichtbar), geht es nach kurzer Wartezeit auf den Channel-Link
+// des Workspaces – der fragt bei Bedarf die Anmeldung ab.
+const SLACK_WORKSPACE = 'https://icp-consultants.slack.com'
 const SLACK_TEAM = 'T0C6PCZ6QTE'
 const SLACK_CHANNEL = 'C0C6DJ0DS2X'
 const SLACK_APP_URL = `slack://channel?team=${SLACK_TEAM}&id=${SLACK_CHANNEL}`
-const SLACK_WEB_URL = `https://app.slack.com/client/${SLACK_TEAM}/${SLACK_CHANNEL}`
+const SLACK_WEB_URL = `${SLACK_WORKSPACE}/archives/${SLACK_CHANNEL}`
 
 function oeffneSlack(e: React.MouseEvent<HTMLAnchorElement>) {
   e.preventDefault()
