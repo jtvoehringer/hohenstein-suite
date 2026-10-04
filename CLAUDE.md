@@ -60,6 +60,8 @@
 - Gemeinsame Mailbox (Migration 015): zusätzlich zu den persönlichen Postfächern eine team-weite Verbindung je Mandant
   (`user_email_connections.gemeinsam`, z. B. office@hohenstein-partner.at); aktive Mailbox wählt das Cookie `hs_mail_konto`
   (Umschalter im Posteingang neben der Adresse), Einrichtung unter Nachrichten → E-Mail-Konto → Gemeinsame Mailbox.
+- Slack: Symbol in der Kopfleiste neben der Glocke öffnet den Team-Channel (Deep-Link `slack://channel`, Fallback Web-Client; IDs in `Topbar.tsx`).
+- PWA: Manifest `src/app/manifest.ts`, Apple-Metadaten in `src/app/layout.tsx`, öffentliche Installationsanleitung /installieren (Link fürs Team).
 - Verbindlichkeiten: `eingangsrechnungen` (/rechnungen/verbindlichkeiten); Bezahlen bucht E&A-Ausgabe (`import_quelle='eingangsrechnung'`),
   Zahlung zurücknehmen löscht sie (nur wenn nicht gesperrt). Fällige Eingangs-/überfällige Ausgangsrechnungen erscheinen in der Hinweis-Glocke.
 
