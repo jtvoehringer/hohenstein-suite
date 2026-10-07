@@ -86,11 +86,11 @@ export default function DateienKarte({
           {dateien.map(d => (
             <li key={d.id} className="flex items-center gap-2 px-1 py-1.5 group">
               <DateiTypIcon typ={d.dateityp} />
-              <a href={`/api/datencenter/datei/${d.id}`} className="flex-1 min-w-0 text-[12.5px] text-hs-text hover:text-hs-blue-700 truncate" title={`${d.dateiname} herunterladen`}>
+              <a href={`/api/datencenter/datei/${d.id}`} target="_blank" rel="noopener" className="flex-1 min-w-0 text-[12.5px] text-hs-text hover:text-hs-blue-700 truncate" title={`${d.dateiname} öffnen`}>
                 {d.dateiname}
               </a>
               <span className="font-mono text-[10.5px] text-hs-tertiary shrink-0 tabular-nums hidden sm:inline">{fmtBytes(d.groesse_bytes)} · {fmtDatum(d.erstellt_am)}</span>
-              <a href={`/api/datencenter/datei/${d.id}`} title="Herunterladen" className="text-hs-tertiary hover:text-hs-blue-700 p-0.5"><Download size={13} strokeWidth={1.75} /></a>
+              <a href={`/api/datencenter/datei/${d.id}?download=1`} title="Herunterladen" className="text-hs-tertiary hover:text-hs-blue-700 p-0.5"><Download size={13} strokeWidth={1.75} /></a>
               {writeOk && (
                 <button type="button" onClick={() => handleLoeschen(d)} title="Löschen" className="text-hs-tertiary hover:text-hs-err p-0.5">
                   <Trash2 size={13} strokeWidth={1.75} />
