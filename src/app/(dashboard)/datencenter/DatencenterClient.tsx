@@ -322,7 +322,7 @@ export default function DatencenterClient({
                   {sichtbareDateien.map(d => (
                     <tr key={d.id} className="hover:bg-hs-bg/70">
                       <td className="px-4 py-2">
-                        <a href={`/api/datencenter/datei/${d.id}`} className="inline-flex items-center gap-2 text-hs-text hover:text-hs-blue-700" title="Herunterladen">
+                        <a href={`/api/datencenter/datei/${d.id}`} target="_blank" rel="noopener" className="inline-flex items-center gap-2 text-hs-text hover:text-hs-blue-700" title="Öffnen">
                           <DateiTypIcon typ={d.dateityp} />
                           <span className="truncate max-w-[380px]">{d.dateiname}</span>
                         </a>
@@ -336,7 +336,7 @@ export default function DatencenterClient({
                       <td className="px-4 py-2 hidden lg:table-cell text-xs text-hs-text-1">{fmtDatum(d.erstellt_am)}</td>
                       <td className="px-2 py-2 text-right">
                         <span className="inline-flex items-center gap-0.5">
-                          <a href={`/api/datencenter/datei/${d.id}`} title="Herunterladen" className="text-hs-tertiary hover:text-hs-blue-700 p-1"><Download size={14} strokeWidth={1.75} /></a>
+                          <a href={`/api/datencenter/datei/${d.id}?download=1`} title="Herunterladen" className="text-hs-tertiary hover:text-hs-blue-700 p-1"><Download size={14} strokeWidth={1.75} /></a>
                           {writeOk && !d.firma_id && !d.kontakt_id && (
                             <button onClick={() => setVerschieben(d)} title="In Ordner verschieben" className="text-hs-tertiary hover:text-hs-blue-700 p-1"><FolderInput size={14} strokeWidth={1.75} /></button>
                           )}

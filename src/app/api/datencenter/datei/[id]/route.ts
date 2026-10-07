@@ -7,9 +7,11 @@ export const dynamic = 'force-dynamic'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
 
-// GET /api/datencenter/datei/[id] – signierte Download-URL (Redirect, 60 s gültig)
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// GET /api/datencenter/datei/[id] – signierte URL (Redirect, 60 s gültig)
+// Standard: inline öffnen (PDF/Bild/Text im Browser-Tab); ?download=1 erzwingt „Speichern unter“
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const alsDownload = req.nextUrl.searchParams.get('download') === '1'
   const membership = await getCurrentMembership()
   if (!membership) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
 
@@ -22,7 +24,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: signed, error } = await supabase.storage
     .from('datencenter')
-    .createSignedUrl((dok as R).storage_pfad, 60, { download: (dok as R).dateiname })
+    .createSignedUrl((dok as R).storage_pfad, 60, alsDownload ? { download: (dok as R).dateiname } : undefined)
   if (error || !signed?.signedUrl) return NextResponse.json({ error: 'Download-Link konnte nicht erstellt werden' }, { status: 500 })
 
   return NextResponse.redirect(signed.signedUrl)
