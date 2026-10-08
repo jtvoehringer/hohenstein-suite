@@ -9,18 +9,44 @@ import { kontoSpeichernAction, kontoEntfernenAction } from './actions'
 
 type TestErgebnis = { imap: { ok: boolean; fehler: string }; smtp: { ok: boolean; fehler: string } }
 
+// Hohenstein-Postfächer (@hohenstein-partner.at) liegen bei World4You – fix hinterlegt,
+// damit bei einer Neuanmeldung nur noch das Passwort einzugeben ist.
+const HC_MAIL = { domain: 'hohenstein-partner.at', gemeinsam: 'office@hohenstein-partner.at',
+  imap_host: 'imap.world4you.com', imap_port: '993', smtp_host: 'smtp.world4you.com', smtp_port: '587' }
+
+function istHcAdresse(email: string) {
+  return email.trim().toLowerCase().endsWith('@' + HC_MAIL.domain)
+}
+
 const ANBIETER = [
+  { name: 'Hohenstein (World4You)', imap: HC_MAIL.imap_host, smtp: HC_MAIL.smtp_host, hinweis: 'IMAP 993 SSL/TLS, SMTP 587 STARTTLS' },
   { name: 'Microsoft 365 / Outlook', imap: 'outlook.office365.com', smtp: 'smtp.office365.com', hinweis: 'App-Passwort bzw. „Authentifizierte SMTP-Übermittlung" im Admin-Center aktivieren' },
   { name: 'Google Workspace / Gmail', imap: 'imap.gmail.com', smtp: 'smtp.gmail.com', hinweis: 'App-Passwort (2-Faktor-Authentifizierung nötig)' },
   { name: 'GMX', imap: 'imap.gmx.net', smtp: 'mail.gmx.net', hinweis: 'IMAP in den GMX-Einstellungen freischalten' },
   { name: 'A1 / aon', imap: 'imap.a1.net', smtp: 'smtp.a1.net', hinweis: '' },
-  { name: 'World4You', imap: 'mail.world4you.com', smtp: 'mail.world4you.com', hinweis: '' },
   { name: 'easyname', imap: 'imap.easyname.com', smtp: 'smtp.easyname.com', hinweis: '' },
 ]
 
-export default function EinstellungenForm({ konto, gemeinsam = false }: { konto: KontoAnzeige; gemeinsam?: boolean }) {
+/** Leeres Formular – bei Hohenstein-Adressen mit den World4You-Servern vorbefüllt */
+function leeresFormular(email: string, anzeigename = '') {
+  const hc = istHcAdresse(email)
+  return {
+    email_address: email, anzeigename,
+    imap_host: hc ? HC_MAIL.imap_host : '', imap_port: '993', imap_user: hc ? email : '', imap_pass: '',
+    smtp_host: hc ? HC_MAIL.smtp_host : '', smtp_port: '587', smtp_user: hc ? email : '', smtp_pass: '',
+    smtp_from_name: '', signatur: '',
+  }
+}
+
+export default function EinstellungenForm({ konto, gemeinsam = false, eigeneEmail = '', eigenerName = '' }: {
+  konto: KontoAnzeige; gemeinsam?: boolean
+  /** Login-Adresse des Benutzers – Vorschlag fürs persönliche Postfach */
+  eigeneEmail?: string; eigenerName?: string
+}) {
   const router = useRouter()
-  const [f, setF] = useState({
+  const vorschlagEmail = gemeinsam ? HC_MAIL.gemeinsam : (istHcAdresse(eigeneEmail) ? eigeneEmail.toLowerCase() : '')
+  const vorschlagName = gemeinsam ? 'Hohenstein Consulting OG' : eigenerName
+  const [f, setF] = useState(() => konto.vorhanden ? {
     email_address: konto.email_address,
     anzeigename: konto.anzeigename,
     imap_host: konto.imap_host,
@@ -33,7 +59,9 @@ export default function EinstellungenForm({ konto, gemeinsam = false }: { konto:
     smtp_pass: '',
     smtp_from_name: konto.smtp_from_name,
     signatur: konto.signatur,
-  })
+  } : leeresFormular(vorschlagEmail, vorschlagName))
+  const hcFix = istHcAdresse(f.email_address)
+    && f.imap_host === HC_MAIL.imap_host && f.smtp_host === HC_MAIL.smtp_host
   const [saving, setSaving]   = useState(false)
   const [testing, setTesting] = useState(false)
   const [erfolg, setErfolg]   = useState('')
@@ -42,7 +70,14 @@ export default function EinstellungenForm({ konto, gemeinsam = false }: { konto:
   const [entfernen, setEntfernen] = useState(false)
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setF(prev => ({ ...prev, [k]: e.target.value }))
+    setF(prev => {
+      const neu = { ...prev, [k]: e.target.value }
+      // Hohenstein-Adresse eingetippt und noch keine Server gesetzt → World4You übernehmen
+      if (k === 'email_address' && istHcAdresse(neu.email_address) && !prev.imap_host && !prev.smtp_host) {
+        return { ...neu, imap_host: HC_MAIL.imap_host, imap_port: HC_MAIL.imap_port, smtp_host: HC_MAIL.smtp_host, smtp_port: HC_MAIL.smtp_port }
+      }
+      return neu
+    })
 
   function anbieterUebernehmen(a: typeof ANBIETER[number]) {
     setF(prev => ({ ...prev, imap_host: a.imap, imap_port: '993', smtp_host: a.smtp, smtp_port: '587',
@@ -87,7 +122,7 @@ export default function EinstellungenForm({ konto, gemeinsam = false }: { konto:
     if (res?.fehler) setFehler(res.fehler)
     else {
       setErfolg('Verbindung entfernt')
-      setF({ email_address: '', anzeigename: '', imap_host: '', imap_port: '993', imap_user: '', imap_pass: '', smtp_host: '', smtp_port: '587', smtp_user: '', smtp_pass: '', smtp_from_name: '', signatur: '' })
+      setF(leeresFormular(vorschlagEmail, vorschlagName))
       setEntfernen(false)
       router.refresh()
     }
@@ -121,8 +156,20 @@ export default function EinstellungenForm({ konto, gemeinsam = false }: { konto:
         </div>
       </div>
 
+      {/* Hohenstein-Postfach: Server fix hinterlegt */}
+      {hcFix && (
+        <div className="card py-4 flex items-start gap-2 text-[12.5px] text-hs-text-2">
+          <Check size={16} strokeWidth={2} className="text-hs-ok-fg mt-0.5 shrink-0" />
+          <p>
+            <span className="font-semibold text-hs-text">Hohenstein-Postfach – Server sind fix hinterlegt.</span>{' '}
+            IMAP {HC_MAIL.imap_host}:{HC_MAIL.imap_port} (SSL/TLS) · SMTP {HC_MAIL.smtp_host}:{HC_MAIL.smtp_port} (STARTTLS) · Benutzername = E-Mail-Adresse.
+            {konto.vorhanden ? ' Bei einer Neuanmeldung nur das Passwort eingeben und speichern.' : ' Nur noch das Passwort eingeben und speichern.'}
+          </p>
+        </div>
+      )}
+
       {/* Anbieter-Voreinstellungen */}
-      <div className="card space-y-3">
+      {!hcFix && <div className="card space-y-3">
         <div className="flex items-start gap-2">
           <Info size={16} strokeWidth={1.75} className="text-hs-blue-700 mt-0.5 shrink-0" />
           <div className="text-[12.5px] text-hs-text-2">
@@ -139,7 +186,7 @@ export default function EinstellungenForm({ konto, gemeinsam = false }: { konto:
             </button>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* IMAP */}
       <div className="card space-y-4">
