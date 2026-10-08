@@ -10,7 +10,7 @@ import { Paperclip, Upload, Download, Trash2, Loader2, X } from 'lucide-react'
 import { fmtDatum } from '@/lib/format'
 import { DateiTypIcon, fmtBytes } from '@/app/(dashboard)/datencenter/DatencenterClient'
 import { dateiHochladen } from '@/lib/datencenter/upload'
-import { imBrowserAnzeigbar } from '@/lib/datencenter/anzeige'
+import { dateiLinkProps } from '@/lib/datencenter/anzeige'
 
 export type KarteDatei = {
   id: string
@@ -87,7 +87,7 @@ export default function DateienKarte({
           {dateien.map(d => (
             <li key={d.id} className="flex items-center gap-2 px-1 py-1.5 group">
               <DateiTypIcon typ={d.dateityp} />
-              <a href={`/api/datencenter/datei/${d.id}`} {...(imBrowserAnzeigbar(d.dateityp, d.dateiname) ? { target: '_blank', rel: 'noopener' } : {})}className="flex-1 min-w-0 text-[12.5px] text-hs-text hover:text-hs-blue-700 truncate" title={`${d.dateiname} öffnen`}>
+              <a href={`/api/datencenter/datei/${d.id}`} className="flex-1 min-w-0 text-[12.5px] text-hs-text hover:text-hs-blue-700 truncate" title={`${d.dateiname} öffnen`} {...dateiLinkProps(d)}>
                 {d.dateiname}
               </a>
               <span className="font-mono text-[10.5px] text-hs-tertiary shrink-0 tabular-nums hidden sm:inline">{fmtBytes(d.groesse_bytes)} · {fmtDatum(d.erstellt_am)}</span>

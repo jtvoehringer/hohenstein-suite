@@ -22,6 +22,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .eq('id', id).eq('tenant_id', membership.tenantId)
     .maybeSingle()
   if (!dok) return NextResponse.json({ error: 'Datei nicht gefunden' }, { status: 404 })
+
+  // ?office=1 → nur die signierte URL als JSON (5 Min. gültig). Der Client übergibt sie per
+  // ms-word:/ms-excel:/ms-powerpoint: an die Office-App; die lädt ohne Browser-Cookies.
+  if (req.nextUrl.searchParams.get('office') === '1') {
+    const { data: signed, error } = await supabase.storage.from('datencenter').createSignedUrl((dok as R).storage_pfad, 300)
+    if (error || !signed?.signedUrl) return NextResponse.json({ error: 'Link konnte nicht erstellt werden' }, { status: 500 })
+    return NextResponse.json({ url: signed.signedUrl })
+  }
+
   const alsDownload = req.nextUrl.searchParams.get('download') === '1'
     || !imBrowserAnzeigbar((dok as R).dateityp, (dok as R).dateiname)
 
