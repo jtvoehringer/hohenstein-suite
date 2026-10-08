@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { fmtDatum } from '@/lib/format'
 import { dateiHochladen } from '@/lib/datencenter/upload'
+import { imBrowserAnzeigbar } from '@/lib/datencenter/anzeige'
 import { createOrdner, renameOrdner, deleteOrdner, moveDatei, renameDatei } from './actions'
 
 export type AblageOrdner = { id: string; parent_id: string | null; name: string }
@@ -322,7 +323,7 @@ export default function DatencenterClient({
                   {sichtbareDateien.map(d => (
                     <tr key={d.id} className="hover:bg-hs-bg/70">
                       <td className="px-4 py-2">
-                        <a href={`/api/datencenter/datei/${d.id}`} target="_blank" rel="noopener" className="inline-flex items-center gap-2 text-hs-text hover:text-hs-blue-700" title="Öffnen">
+                        <a href={`/api/datencenter/datei/${d.id}`} {...(imBrowserAnzeigbar(d.dateityp, d.dateiname) ? { target: '_blank', rel: 'noopener' } : {})} className="inline-flex items-center gap-2 text-hs-text hover:text-hs-blue-700" title="Öffnen">
                           <DateiTypIcon typ={d.dateityp} />
                           <span className="truncate max-w-[380px]">{d.dateiname}</span>
                         </a>

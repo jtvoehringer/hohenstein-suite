@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
+import { imBrowserAnzeigbar } from '@/lib/datencenter/anzeige'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,19 +9,21 @@ export const dynamic = 'force-dynamic'
 type R = Record<string, any>
 
 // GET /api/datencenter/datei/[id] – signierte URL (Redirect, 60 s gültig)
-// Standard: inline öffnen (PDF/Bild/Text im Browser-Tab); ?download=1 erzwingt „Speichern unter“
+// Standard: inline öffnen, wenn der Browser den Typ anzeigen kann (PDF/Bild/Text);
+// Office-Dateien u. Ä. immer als Download mit echtem Dateinamen. ?download=1 erzwingt den Download.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const alsDownload = req.nextUrl.searchParams.get('download') === '1'
   const membership = await getCurrentMembership()
   if (!membership) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
 
   const supabase = await createSupabaseServerClient()
   const { data: dok } = await (supabase.from('ablage_dateien') as any)
-    .select('storage_pfad, dateiname')
+    .select('storage_pfad, dateiname, dateityp')
     .eq('id', id).eq('tenant_id', membership.tenantId)
     .maybeSingle()
   if (!dok) return NextResponse.json({ error: 'Datei nicht gefunden' }, { status: 404 })
+  const alsDownload = req.nextUrl.searchParams.get('download') === '1'
+    || !imBrowserAnzeigbar((dok as R).dateityp, (dok as R).dateiname)
 
   const { data: signed, error } = await supabase.storage
     .from('datencenter')
