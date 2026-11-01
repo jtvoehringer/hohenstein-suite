@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import ProfilForm from './ProfilForm'
+import PasskeyVerwaltung from './PasskeyVerwaltung'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,9 @@ export default async function ProfilPage() {
       <h1 className="text-2xl mb-1">Mein Profil</h1>
       <p className="text-sm text-hs-text-2 mb-6">Name und Telefonnummer, wie sie im Team angezeigt werden.</p>
       <ProfilForm email={user.email ?? ''} fullName={p.full_name ?? p.display_name ?? ''} telefon={p.telefon ?? ''} benachrichtigungEmail={p.benachrichtigung_email !== false} />
+      <div className="mt-5">
+        <PasskeyVerwaltung />
+      </div>
     </div>
   )
 }

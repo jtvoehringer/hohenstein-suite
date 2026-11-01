@@ -61,6 +61,9 @@
   (`user_email_connections.gemeinsam`, z. B. office@hohenstein-partner.at); aktive Mailbox wählt das Cookie `hs_mail_konto`
   (Umschalter im Posteingang neben der Adresse), Einrichtung unter Nachrichten → E-Mail-Konto → Gemeinsame Mailbox.
 - Slack: Symbol in der Kopfleiste neben der Glocke öffnet den Team-Channel (Workspace icp-consultants.slack.com; Deep-Link `slack://channel`, Fallback `…/archives/<Channel>`; IDs in `Topbar.tsx`).
+- Passkeys (wie software:112 KAN-287): Supabase-Passkeys (Beta, supabase-js ≥ 2.116, Browser-Client mit `auth.experimental.passkey`),
+  Knopf „Mit Passkey anmelden“ auf /login, Einrichten/Entfernen im Profil (`profil/PasskeyVerwaltung.tsx`, `src/lib/auth/passkey.ts`);
+  im Supabase-Dashboard unter Authentication → Passkeys mit RP-ID `hohenstein-suite.vercel.app` freizuschalten.
 - PWA: Manifest `src/app/manifest.ts`, Apple-Metadaten in `src/app/layout.tsx`, öffentliche Installationsanleitung /installieren (Link fürs Team).
 - Verbindlichkeiten: `eingangsrechnungen` (/rechnungen/verbindlichkeiten); Bezahlen bucht E&A-Ausgabe (`import_quelle='eingangsrechnung'`),
   Zahlung zurücknehmen löscht sie (nur wenn nicht gesperrt). Fällige Eingangs-/überfällige Ausgangsrechnungen erscheinen in der Hinweis-Glocke.

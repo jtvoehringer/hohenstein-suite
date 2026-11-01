@@ -1,9 +1,11 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Fingerprint, Loader2 } from 'lucide-react'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { passkeyFehlerText, passkeyMoeglich } from '@/lib/auth/passkey'
 
 function LoginForm() {
   const router = useRouter()
@@ -16,6 +18,25 @@ function LoginForm() {
 
   const grund = params.get('grund')
   const fehler = params.get('error')
+
+  // Passkey-Knopf erst nach dem Laden zeigen (Browser-Fähigkeit, kein Hydration-Unterschied)
+  const [passkeyOk, setPasskeyOk] = useState(false)
+  const [passkeyLaeuft, setPasskeyLaeuft] = useState(false)
+  useEffect(() => { setPasskeyOk(passkeyMoeglich()) }, [])
+
+  const mitPasskey = async () => {
+    setLoading(true); setPasskeyLaeuft(true); setError(null)
+    let erfolg = false
+    try {
+      const { error } = await createSupabaseBrowserClient().auth.signInWithPasskey()
+      if (error) { setError(passkeyFehlerText(error)); return }
+      erfolg = true
+      router.push('/mandant-waehlen')
+      router.refresh()
+    } catch (e) { setError(passkeyFehlerText(e)) }
+    // nach Erfolg bleibt der Kreisel stehen, bis die nächste Seite da ist
+    finally { if (!erfolg) { setLoading(false); setPasskeyLaeuft(false) } }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,12 +75,22 @@ function LoginForm() {
         </div>
         {error && <div className="bg-hs-err-bg text-hs-err-fg text-[12.5px] px-3 py-2 rounded-lg">{error}</div>}
         <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
-          {loading ? 'Anmelden …' : 'Anmelden'}
+          {loading && !passkeyLaeuft ? 'Anmelden …' : 'Anmelden'}
         </button>
         <div className="text-center">
           <Link href="/login/reset" className="text-xs text-hs-blue-700 hover:underline">Passwort vergessen?</Link>
         </div>
       </form>
+      {/* Anmeldung per Passkey – eingerichtet im Profil */}
+      {passkeyOk && (
+        <div className="mt-4 pt-4 border-t border-hs-line">
+          <button type="button" onClick={mitPasskey} disabled={loading} aria-busy={passkeyLaeuft} className="btn-secondary w-full justify-center">
+            {passkeyLaeuft ? <Loader2 size={16} className="animate-spin" /> : <Fingerprint size={16} strokeWidth={1.75} />}
+            {passkeyLaeuft ? 'Anmeldung läuft … (am Gerät bestätigen)' : 'Mit Passkey anmelden'}
+          </button>
+          <p className="text-[11.5px] text-hs-tertiary text-center mt-1.5">Fingerabdruck, Gesicht oder Windows Hello</p>
+        </div>
+      )}
     </div>
   )
 }
