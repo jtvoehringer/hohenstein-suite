@@ -54,7 +54,9 @@ export default function Composer(props: ComposerProps) {
   const [sending, setSending] = useState(false)
   const [fehler, setFehler]   = useState('')
   // CRM
-  const [crmAblegen, setCrmAblegen] = useState(false)
+  // Protokollieren ist automatisch an, sobald der Empfänger im CRM bekannt ist – außer man hat es selbst umgeschaltet
+  const [crmAblegen, setCrmAblegen] = useState(!!props.kontaktInfo)
+  const [crmManuell, setCrmManuell] = useState(false)
   const [crmZiel, setCrmZiel]       = useState<KontaktInfo | null>(props.kontaktInfo ?? null)
   const [crmAuswahl, setCrmAuswahl] = useState(false)
   const [crmSuche, setCrmSuche]     = useState(false)
@@ -67,20 +69,26 @@ export default function Composer(props: ComposerProps) {
     if (el) { el.focus(); el.setSelectionRange(0, 0); el.scrollTop = 0 }
   }, [])
 
-  // Automatische CRM-Zuordnung per Empfängeradresse (wenn nichts vorgegeben)
+  // Automatische CRM-Zuordnung per Empfängeradresse (wenn nichts vorgegeben); bei Treffer Protokollieren einschalten
   useEffect(() => {
-    if (!crmAblegen || crmZiel || crmAuswahl) return
+    if (!darfSchreiben || crmZiel || crmAuswahl) return
     const erste = adressListe(to)[0]
-    if (!erste) return
+    if (!erste || !nurAdresse(erste).includes('@')) return
     let aktiv = true
-    setCrmSuche(true)
-    fetch(`/api/nachrichten/crm-suche?email=${encodeURIComponent(nurAdresse(erste))}`)
-      .then(r => r.json())
-      .then(d => { if (aktiv && d.treffer) setCrmZiel(d.treffer) })
-      .catch(() => {})
-      .finally(() => { if (aktiv) setCrmSuche(false) })
-    return () => { aktiv = false }
-  }, [crmAblegen, to, crmZiel, crmAuswahl])
+    const t = setTimeout(() => {
+      setCrmSuche(true)
+      fetch(`/api/nachrichten/crm-suche?email=${encodeURIComponent(nurAdresse(erste))}`)
+        .then(r => r.json())
+        .then(d => {
+          if (!aktiv || !d.treffer) return
+          setCrmZiel(d.treffer)
+          if (!crmManuell) setCrmAblegen(true)
+        })
+        .catch(() => {})
+        .finally(() => { if (aktiv) setCrmSuche(false) })
+    }, 400)
+    return () => { aktiv = false; clearTimeout(t) }
+  }, [darfSchreiben, to, crmZiel, crmAuswahl, crmManuell])
 
   async function dateienWaehlen(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -184,7 +192,7 @@ export default function Composer(props: ComposerProps) {
       {darfSchreiben && (
         <div className="px-5 pb-2 space-y-2">
           <label className="inline-flex items-center gap-2 text-[12.5px] text-hs-text-1 cursor-pointer">
-            <input type="checkbox" checked={crmAblegen} onChange={e => setCrmAblegen(e.target.checked)} className="rounded border-hs-line-str" />
+            <input type="checkbox" checked={crmAblegen} onChange={e => { setCrmAblegen(e.target.checked); setCrmManuell(true) }} className="rounded border-hs-line-str" />
             Im CRM protokollieren
           </label>
           {crmAblegen && !crmAuswahl && (
