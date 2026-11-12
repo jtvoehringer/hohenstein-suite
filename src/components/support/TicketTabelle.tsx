@@ -1,13 +1,19 @@
 // Tabelle der Support-Tickets (Jira) – Server-Komponente, ein Klick öffnet das Ticket in Jira.
 import Link from 'next/link'
-import { ExternalLink } from 'lucide-react'
-import { fmtDatum } from '@/lib/format'
-import type { SupportTicket } from '@/lib/support/jira'
+import { ExternalLink, Pause } from 'lucide-react'
+import { istUeberfaellig, type SupportTicket } from '@/lib/support/jira'
 import type { CrmTreffer } from '@/lib/support/crm'
 
+// Server läuft in UTC (Vercel) – Jira-Zeitpunkte immer in Wiener Zeit anzeigen
+const TZ = 'Europe/Vienna'
+const fmtDatum = (iso: string) => new Date(iso.length === 10 ? iso + 'T12:00:00Z' : iso).toLocaleDateString('de-AT', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric' })
+const fmtDatumZeit = (iso: string) => new Date(iso).toLocaleString('de-AT', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+/** Status-Pill nach Phase: wartet auf uns = gelb, in Bearbeitung = blau, wartet auf Kunde = grau, erledigt = grün */
 export function StatusPill({ t }: { t: SupportTicket }) {
-  const cls = t.statusKategorie === 'done' ? 'bg-hs-ok-bg text-hs-ok-fg'
-    : t.statusKategorie === 'indeterminate' ? 'bg-hs-blue-50 text-hs-blue-700'
+  const cls = t.phase === 'erledigt' ? 'bg-hs-ok-bg text-hs-ok-fg'
+    : t.phase === 'in_arbeit' ? 'bg-hs-blue-50 text-hs-blue-700'
+    : t.phase === 'wartet_kunde' ? 'bg-hs-bg text-hs-text-2'
     : 'bg-hs-warn-bg text-hs-warn-fg'
   return <span className={`pill ${cls} whitespace-nowrap`}>{t.status}</span>
 }
@@ -24,13 +30,28 @@ export function alter(iso: string): string {
   return tage <= 0 ? 'heute' : tage === 1 ? 'gestern' : `vor ${tage} Tagen`
 }
 
-export default function TicketTabelle({ tickets, crm, kompakt = false, heute }: {
+/** Fällig laut SLA „Time to resolution“ (Fallback: manuelles Fälligkeitsdatum) */
+function Faellig({ t, kurz = false }: { t: SupportTicket; kurz?: boolean }) {
+  if (t.phase === 'erledigt') return <span className="text-hs-tertiary">{t.erledigtAm ? `erledigt ${fmtDatum(t.erledigtAm)}` : '–'}</span>
+  const rot = istUeberfaellig(t)
+  if (t.sla) {
+    return (
+      <span className={`inline-flex items-center gap-1 ${rot ? 'text-hs-err-fg font-semibold' : ''}`} title="SLA „Time to resolution“">
+        {t.sla.pausiert && <Pause size={11} strokeWidth={2} className="text-hs-tertiary" />}
+        {kurz ? fmtDatum(t.sla.faellig) : fmtDatumZeit(t.sla.faellig)}
+        {rot && <span className="text-[10.5px]">SLA verletzt</span>}
+      </span>
+    )
+  }
+  return <span className={rot ? 'text-hs-err-fg font-semibold' : ''}>{t.faellig ? fmtDatum(t.faellig) : '–'}</span>
+}
+
+export default function TicketTabelle({ tickets, crm, kompakt = false }: {
   tickets: SupportTicket[]
   /** E-Mail des Melders → CRM-Zuordnung (nur in der Übersicht) */
   crm?: Map<string, CrmTreffer>
   /** schmale Variante für die Karten auf den CRM-Detailseiten */
   kompakt?: boolean
-  heute: string
 }) {
   if (kompakt) {
     return (
@@ -43,6 +64,7 @@ export default function TicketTabelle({ tickets, crm, kompakt = false, heute }: 
               </span>
               <span className="block text-[11px] text-hs-tertiary">
                 {t.typ} · {fmtDatum(t.erstellt)}{t.bearbeiter ? ` · ${t.bearbeiter}` : ' · ohne Bearbeiter'}
+                {t.phase !== 'erledigt' && (t.sla || t.faellig) && <> · fällig <Faellig t={t} kurz /></>}
               </span>
             </a>
             <StatusPill t={t} />
@@ -63,13 +85,12 @@ export default function TicketTabelle({ tickets, crm, kompakt = false, heute }: 
             <th className="px-3 py-2 font-semibold hidden md:table-cell">Priorität</th>
             <th className="px-3 py-2 font-semibold hidden md:table-cell">Bearbeiter</th>
             <th className="px-3 py-2 font-semibold hidden lg:table-cell">Erstellt</th>
-            <th className="px-3 py-2 font-semibold hidden lg:table-cell">Fällig</th>
+            <th className="px-3 py-2 font-semibold hidden lg:table-cell">Fällig (SLA)</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-hs-line">
           {tickets.map(t => {
             const z = t.melderEmail ? crm?.get(t.melderEmail) : undefined
-            const ueberfaellig = t.statusKategorie !== 'done' && !!t.faellig && t.faellig < heute
             return (
               <tr key={t.key} className="hover:bg-hs-bg/70 align-top">
                 <td className="px-3 py-2 max-w-[420px]">
@@ -85,7 +106,8 @@ export default function TicketTabelle({ tickets, crm, kompakt = false, heute }: 
                     : z?.kontakt ? <Link href={`/crm/kontakte/${z.kontakt.id}`} className="text-hs-blue-700 hover:underline">{z.kontakt.name}</Link>
                     : <span className="text-hs-text-1">{t.melderName ?? '–'}</span>}
                   <span className="block text-[11px] text-hs-tertiary">
-                    {z?.firma && z.kontakt ? `${z.kontakt.name} · ` : ''}{t.melderEmail ?? (z ? '' : 'nicht im CRM')}
+                    {z?.firma && z.kontakt ? `${z.kontakt.name} · ` : ''}{t.melderEmail ?? ''}
+                    {!z && <span className="text-hs-warn-fg">{t.melderEmail ? ' · ' : ''}nicht im CRM</span>}
                   </span>
                 </td>
                 <td className="px-3 py-2"><StatusPill t={t} /></td>
@@ -94,9 +116,7 @@ export default function TicketTabelle({ tickets, crm, kompakt = false, heute }: 
                 <td className="px-3 py-2 hidden lg:table-cell whitespace-nowrap">
                   {fmtDatum(t.erstellt)}<span className="block text-[11px] text-hs-tertiary">{alter(t.erstellt)}</span>
                 </td>
-                <td className={`px-3 py-2 hidden lg:table-cell whitespace-nowrap ${ueberfaellig ? 'text-hs-err-fg font-semibold' : ''}`}>
-                  {t.faellig ? fmtDatum(t.faellig) : '–'}
-                </td>
+                <td className="px-3 py-2 hidden lg:table-cell whitespace-nowrap"><Faellig t={t} /></td>
               </tr>
             )
           })}

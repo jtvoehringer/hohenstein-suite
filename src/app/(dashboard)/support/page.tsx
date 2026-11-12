@@ -4,9 +4,8 @@ import { redirect } from 'next/navigation'
 import { ExternalLink, LifeBuoy } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership } from '@/lib/auth/roles'
-import { ladeSupportTickets, jiraLinks, istOffen, istUeberfaellig, JIRA_PROJEKT } from '@/lib/support/jira'
+import { ladeSupportTickets, jiraLinks, istOffen, istUeberfaellig, JIRA_PROJEKT, PHASE_LABEL } from '@/lib/support/jira'
 import { crmZuordnungPerEmail } from '@/lib/support/crm'
-import { heuteIso } from '@/lib/format'
 import { Card, Hinweis, Tile } from '@/components/dashboard/ui'
 import TicketTabelle from '@/components/support/TicketTabelle'
 
@@ -28,7 +27,6 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
   const ansicht: Ansicht = (ANSICHTEN.find(a => a.key === sp.ansicht)?.key ?? 'offen')
 
   const erg = await ladeSupportTickets()
-  const heute = heuteIso()
 
   const kopf = (
     <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -63,17 +61,21 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
 
   const alle = erg.tickets
   const offen = alle.filter(istOffen)
-  const vor30 = new Date(Date.now() - 30 * 86_400_000).toISOString()
+  const vor30 = Date.now() - 30 * 86_400_000
   const kennzahlen = {
-    neu: offen.filter(t => t.statusKategorie === 'new').length,
-    inArbeit: offen.filter(t => t.statusKategorie === 'indeterminate').length,
+    wartetSupport: offen.filter(t => t.phase === 'wartet_support').length,
+    inArbeit: offen.filter(t => t.phase === 'in_arbeit').length,
+    wartetKunde: offen.filter(t => t.phase === 'wartet_kunde').length,
     ohne: offen.filter(t => !t.bearbeiter).length,
-    ueberfaellig: offen.filter(t => istUeberfaellig(t, heute)).length,
-    erledigt30: alle.filter(t => !istOffen(t) && (t.erledigtAm ?? t.aktualisiert) >= vor30).length,
+    ueberfaellig: offen.filter(t => istUeberfaellig(t)).length,
+    erledigt30: alle.filter(t => !istOffen(t) && new Date(t.erledigtAm ?? t.aktualisiert).getTime() >= vor30).length,
   }
 
-  const liste = ansicht === 'offen' ? offen
-    : ansicht === 'ohne' ? offen.filter(t => !t.bearbeiter)
+  // Offene Tickets: wer zuerst dran ist – SLA-Fälligkeit aufsteigend, ohne SLA ans Ende
+  const nachSla = (a: typeof alle[number], b: typeof alle[number]) =>
+    (a.sla ? new Date(a.sla.faellig).getTime() : Infinity) - (b.sla ? new Date(b.sla.faellig).getTime() : Infinity)
+  const liste = ansicht === 'offen' ? [...offen].sort(nachSla)
+    : ansicht === 'ohne' ? offen.filter(t => !t.bearbeiter).sort(nachSla)
     : ansicht === 'erledigt' ? alle.filter(t => !istOffen(t))
     : alle
 
@@ -85,10 +87,12 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
       {kopf}
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Tile label="Neu" value={`${kennzahlen.neu}`} icon={LifeBuoy} tone={kennzahlen.neu > 0 ? 'warn' : undefined} />
-        <Tile label="In Bearbeitung" value={`${kennzahlen.inArbeit}`} />
-        <Tile label="Ohne Bearbeiter" value={`${kennzahlen.ohne}`} tone={kennzahlen.ohne > 0 ? 'warn' : undefined} />
-        <Tile label="Überfällig" value={`${kennzahlen.ueberfaellig}`} tone={kennzahlen.ueberfaellig > 0 ? 'err' : undefined} />
+        <Tile label={PHASE_LABEL.wartet_support} value={`${kennzahlen.wartetSupport}`} icon={LifeBuoy}
+          sub={kennzahlen.ohne > 0 ? `${kennzahlen.ohne} ohne Bearbeiter` : undefined} tone={kennzahlen.ohne > 0 ? 'warn' : undefined} />
+        <Tile label={PHASE_LABEL.in_arbeit} value={`${kennzahlen.inArbeit}`} />
+        <Tile label={PHASE_LABEL.wartet_kunde} value={`${kennzahlen.wartetKunde}`} />
+        <Tile label="SLA verletzt" value={`${kennzahlen.ueberfaellig}`} tone={kennzahlen.ueberfaellig > 0 ? 'err' : undefined}
+          sub={kennzahlen.ueberfaellig > 0 ? 'Time to resolution überschritten' : undefined} />
         <Tile label="Erledigt (30 Tage)" value={`${kennzahlen.erledigt30}`} tone="ok" />
       </div>
 
@@ -111,7 +115,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
             {alle.length === 0 ? 'Noch keine Tickets im Support-Projekt.' : 'Keine Tickets in dieser Ansicht.'}
           </p>
         ) : (
-          <TicketTabelle tickets={liste} crm={crm} heute={heute} />
+          <TicketTabelle tickets={liste} crm={crm} />
         )}
       </Card>
     </div>

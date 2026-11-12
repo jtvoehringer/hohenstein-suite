@@ -2,7 +2,6 @@
 // Zuordnung über die E-Mail-Adressen der Firma bzw. ihrer Ansprechpartner (Melder des Tickets in Jira).
 import { LifeBuoy } from 'lucide-react'
 import { ladeSupportTickets, istOffen, jiraLinks } from '@/lib/support/jira'
-import { heuteIso } from '@/lib/format'
 import TicketTabelle from './TicketTabelle'
 
 function Rahmen({ children, rechts }: { children: React.ReactNode; rechts?: React.ReactNode }) {
@@ -45,7 +44,7 @@ export default async function SupportTicketsKarte({ emails }: { emails: (string 
         {offen.length} offen · {tickets.length} gesamt
       </a>
     }>
-      <TicketTabelle tickets={anzeige} kompakt heute={heuteIso()} />
+      <TicketTabelle tickets={anzeige} kompakt />
     </Rahmen>
   )
 }

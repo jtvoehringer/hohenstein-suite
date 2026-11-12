@@ -14,23 +14,52 @@
 export const JIRA_SITE_URL = (process.env.JIRA_SITE_URL || 'https://jorgena.atlassian.net').replace(/\/+$/, '')
 export const JIRA_PROJEKT  = process.env.JIRA_SUPPORT_PROJECT || 'SUP'
 
+// Feld-IDs der Service-Desk-Felder auf jorgena.atlassian.net (je Site verschieden, daher überschreibbar)
+const FELD_SLA_LOESUNG = process.env.JIRA_FELD_SLA || 'customfield_10107'        // „Time to resolution“
+const FELD_ANFRAGETYP  = process.env.JIRA_FELD_ANFRAGETYP || 'customfield_10010' // „Request Type“
+
 export type StatusKategorie = 'new' | 'indeterminate' | 'done'
+
+/**
+ * Wo liegt der Ball? Jira führt „Wartet auf Support“ technisch als „In Arbeit“ –
+ * fachlich heißt das aber: wir sind dran. Einordnung daher über den Statusnamen.
+ */
+export type Phase = 'wartet_support' | 'in_arbeit' | 'wartet_kunde' | 'erledigt'
+
+export type SlaStand = { faellig: string; verletzt: boolean; pausiert: boolean }
 
 export type SupportTicket = {
   key: string
   url: string
   zusammenfassung: string
+  /** Anfragetyp aus dem Portal (z. B. „Frage“), sonst Vorgangstyp */
   typ: string
   status: string
   statusKategorie: StatusKategorie
+  phase: Phase
   prioritaet: string | null
   bearbeiter: string | null
   melderName: string | null
   melderEmail: string | null
   erstellt: string
   aktualisiert: string
+  /** SLA „Time to resolution“ (laufender Zyklus) – null, wenn kein SLA läuft */
+  sla: SlaStand | null
+  /** manuelles Fälligkeitsdatum (selten gepflegt) */
   faellig: string | null
   erledigtAm: string | null
+}
+
+export function phaseAus(statusName: string, kategorie: StatusKategorie): Phase {
+  if (kategorie === 'done') return 'erledigt'
+  const n = statusName.toLowerCase()
+  if (/kunde|customer|pending|ausstehend|rückmeldung/.test(n)) return 'wartet_kunde'
+  if (kategorie === 'new' || /wartet auf support|waiting for support|offen|^open|neu|^new|eskaliert|escalated/.test(n)) return 'wartet_support'
+  return 'in_arbeit'
+}
+
+export const PHASE_LABEL: Record<Phase, string> = {
+  wartet_support: 'Wartet auf uns', in_arbeit: 'In Bearbeitung', wartet_kunde: 'Wartet auf Kunde', erledigt: 'Erledigt',
 }
 
 export type SupportLadeErgebnis =
@@ -53,22 +82,34 @@ function apiBasis(): string {
   return cloudId ? `https://api.atlassian.com/ex/jira/${cloudId}` : JIRA_SITE_URL
 }
 
-const FELDER = ['summary', 'status', 'issuetype', 'priority', 'assignee', 'reporter', 'created', 'updated', 'duedate', 'resolutiondate']
+const FELDER = ['summary', 'status', 'issuetype', 'priority', 'assignee', 'reporter', 'created', 'updated', 'duedate', 'resolutiondate',
+  FELD_SLA_LOESUNG, FELD_ANFRAGETYP]
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
 
+function slaAus(v: R | null | undefined): SlaStand | null {
+  const z = v?.ongoingCycle as R | undefined
+  const faellig = z?.breachTime?.iso8601 as string | undefined
+  if (!z || !faellig) return null
+  return { faellig, verletzt: !!z.breached, pausiert: !!z.paused }
+}
+
 function zuTicket(i: R): SupportTicket {
   const f = (i.fields ?? {}) as R
   const kat = f.status?.statusCategory?.key as string | undefined
+  const statusKategorie: StatusKategorie = kat === 'done' ? 'done' : kat === 'indeterminate' ? 'indeterminate' : 'new'
+  const status = f.status?.name ?? '–'
   return {
     key: i.key,
     url: jiraLinks.ticket(i.key),
     zusammenfassung: f.summary ?? '(ohne Titel)',
-    // „[System] Incident“ → „Incident“
-    typ: String(f.issuetype?.name ?? '').replace(/^\[System\]\s*/, ''),
-    status: f.status?.name ?? '–',
-    statusKategorie: kat === 'done' ? 'done' : kat === 'indeterminate' ? 'indeterminate' : 'new',
+    // Anfragetyp („Frage“), sonst Vorgangstyp ohne „[System]“-Präfix
+    typ: (f[FELD_ANFRAGETYP]?.requestType?.name as string | undefined) || String(f.issuetype?.name ?? '').replace(/^\[System\]\s*/, ''),
+    status,
+    statusKategorie,
+    phase: phaseAus(status, statusKategorie),
+    sla: statusKategorie === 'done' ? null : slaAus(f[FELD_SLA_LOESUNG]),
     prioritaet: f.priority?.name ?? null,
     bearbeiter: f.assignee?.displayName ?? null,
     melderName: f.reporter?.displayName ?? null,
@@ -140,6 +181,9 @@ export async function ladeSupportTickets(): Promise<SupportLadeErgebnis> {
 
 export function istOffen(t: SupportTicket) { return t.statusKategorie !== 'done' }
 
-export function istUeberfaellig(t: SupportTicket, heute = new Date().toISOString().slice(0, 10)) {
-  return istOffen(t) && !!t.faellig && t.faellig < heute
+/** SLA verletzt bzw. überschritten (oder – ohne SLA – manuelles Fälligkeitsdatum vorbei) */
+export function istUeberfaellig(t: SupportTicket, jetzt = new Date()) {
+  if (!istOffen(t)) return false
+  if (t.sla) return t.sla.verletzt || (!t.sla.pausiert && new Date(t.sla.faellig) < jetzt)
+  return !!t.faellig && t.faellig < jetzt.toISOString().slice(0, 10)
 }
