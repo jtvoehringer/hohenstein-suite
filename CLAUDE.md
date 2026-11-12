@@ -66,7 +66,10 @@
   im Supabase-Dashboard unter Authentication → Passkeys mit RP-ID `hohenstein-suite.vercel.app` freizuschalten.
 - Support (/support, Bereich „Support“): Tickets aus Jira Service Management (jorgena.atlassian.net, Projekt `SUP` „software112 Support“)
   über die REST-API (`src/lib/support/jira.ts`, 60 s gecacht; Jira ist nicht per iframe einbettbar) – Kennzahlen, Ansichten
-  Offen/Ohne Bearbeiter/Erledigt/Alle, Klick öffnet das Ticket in Jira. Melder-E-Mail → CRM-Kontakt/Firma (`src/lib/support/crm.ts`);
+  Offen/Ohne Bearbeiter/Erledigt/Alle, Klick öffnet das Ticket in Jira. Tickets kommen v. a. aus software:112 („Problem melden“, KAN-230:
+  Kunde als kostenloser JSM-Kunde, Organisation = Betrieb, Kontextzeile „Betrieb: <Name> (<Mandanten-ID>)“ in der Beschreibung).
+  Zuordnung `crmZuordnungFuerTickets` (`src/lib/support/crm.ts`): Mandanten-ID → `firmen.s112_tenant_id`, sonst Organisation →
+  s112-Mandant gleichen Namens → Firma bzw. CRM-Firma gleichen Namens, sonst Melder-E-Mail → Kontakt/Firma;
   Karte „Support-Tickets“ auf Firmen-/Kontakt-Detailseiten (`components/support/SupportTicketsKarte.tsx`, Suspense-Slot `supportKarte`).
   Env: `JIRA_EMAIL`, `JIRA_API_TOKEN` (Agent im Projekt), optional `JIRA_SITE_URL`, `JIRA_SUPPORT_PROJECT`, `JIRA_CLOUD_ID` (Service-Konto, scoped Token).
 - PWA: Manifest `src/app/manifest.ts`, Apple-Metadaten in `src/app/layout.tsx`, öffentliche Installationsanleitung /installieren (Link fürs Team).

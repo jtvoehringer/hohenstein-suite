@@ -5,7 +5,7 @@ import { ExternalLink, LifeBuoy } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership } from '@/lib/auth/roles'
 import { ladeSupportTickets, jiraLinks, istOffen, istUeberfaellig, JIRA_PROJEKT, PHASE_LABEL } from '@/lib/support/jira'
-import { crmZuordnungPerEmail } from '@/lib/support/crm'
+import { crmZuordnungFuerTickets } from '@/lib/support/crm'
 import { Card, Hinweis, Tile } from '@/components/dashboard/ui'
 import TicketTabelle from '@/components/support/TicketTabelle'
 
@@ -80,7 +80,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
     : alle
 
   const supabase = await createSupabaseServerClient()
-  const crm = await crmZuordnungPerEmail(supabase, membership.tenantId, liste.map(t => t.melderEmail ?? '').filter(Boolean))
+  const crm = await crmZuordnungFuerTickets(supabase, membership.tenantId, liste)
 
   return (
     <div className="space-y-6">

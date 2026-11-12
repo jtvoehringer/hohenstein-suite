@@ -1,7 +1,11 @@
 // Karte „Support-Tickets“ auf den CRM-Detailseiten (Firma/Kontakt) – Server-Komponente, per Suspense gestreamt.
-// Zuordnung über die E-Mail-Adressen der Firma bzw. ihrer Ansprechpartner (Melder des Tickets in Jira).
+// Zuordnung wie in der Übersicht (crmZuordnungFuerTickets): software:112-Mandant → JSM-Organisation → E-Mail des Melders;
+// zusätzlich zählen die E-Mail-Adressen der Firma bzw. ihrer Ansprechpartner direkt.
 import { LifeBuoy } from 'lucide-react'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getCurrentMembership } from '@/lib/auth/roles'
 import { ladeSupportTickets, istOffen, jiraLinks } from '@/lib/support/jira'
+import { crmZuordnungFuerTickets } from '@/lib/support/crm'
 import TicketTabelle from './TicketTabelle'
 
 function Rahmen({ children, rechts }: { children: React.ReactNode; rechts?: React.ReactNode }) {
@@ -22,17 +26,30 @@ export function SupportTicketsKarteLaden() {
   return <Rahmen><p className="text-[12px] text-hs-tertiary">Laden …</p></Rahmen>
 }
 
-export default async function SupportTicketsKarte({ emails }: { emails: (string | null | undefined)[] }) {
+export default async function SupportTicketsKarte({ firmaId, kontaktId, emails }: {
+  firmaId?: string
+  kontaktId?: string
+  emails: (string | null | undefined)[]
+}) {
   const adressen = new Set(emails.filter((e): e is string => !!e).map(e => e.trim().toLowerCase()))
   const erg = await ladeSupportTickets()
-  // Ohne Anbindung oder ohne E-Mail-Adresse die Karte gar nicht zeigen
+  // Ohne Anbindung die Karte gar nicht zeigen
   if (!erg.ok) {
     if (erg.nichtKonfiguriert) return null
     return <Rahmen><p className="text-[12px] text-hs-err-fg">Jira nicht erreichbar.</p></Rahmen>
   }
-  if (adressen.size === 0) return null
+  if (erg.tickets.length === 0) return null
 
-  const tickets = erg.tickets.filter(t => t.melderEmail && adressen.has(t.melderEmail))
+  const membership = await getCurrentMembership()
+  if (!membership) return null
+  const supabase = await createSupabaseServerClient()
+  const zuordnung = await crmZuordnungFuerTickets(supabase, membership.tenantId, erg.tickets)
+
+  const tickets = erg.tickets.filter(t => {
+    if (t.melderEmail && adressen.has(t.melderEmail)) return true
+    const z = zuordnung.get(t.key)
+    return !!z && ((!!firmaId && z.firma?.id === firmaId) || (!!kontaktId && z.kontakt?.id === kontaktId))
+  })
   if (tickets.length === 0) return null
   const offen = tickets.filter(istOffen)
   // offene zuerst, dann die letzten erledigten

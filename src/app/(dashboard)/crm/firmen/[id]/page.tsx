@@ -155,7 +155,7 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
       dateien={dateien}
       supportKarte={
         <Suspense fallback={<SupportTicketsKarteLaden />}>
-          <SupportTicketsKarte emails={[firma.email, ...ansprechpartner.map(a => a.email)]} />
+          <SupportTicketsKarte firmaId={firma.id} emails={[firma.email, ...ansprechpartner.map(a => a.email)]} />
         </Suspense>
       }
     />

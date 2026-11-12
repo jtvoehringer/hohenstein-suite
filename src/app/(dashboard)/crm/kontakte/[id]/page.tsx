@@ -116,7 +116,7 @@ export default async function KontaktDetailPage({ params }: { params: Promise<{ 
       writeOk={writeOk}
       supportKarte={
         <Suspense fallback={<SupportTicketsKarteLaden />}>
-          <SupportTicketsKarte emails={[kontakt.email]} />
+          <SupportTicketsKarte kontaktId={kontakt.id} emails={[kontakt.email]} />
         </Suspense>
       }
     />

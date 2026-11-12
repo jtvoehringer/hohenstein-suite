@@ -17,6 +17,7 @@ export const JIRA_PROJEKT  = process.env.JIRA_SUPPORT_PROJECT || 'SUP'
 // Feld-IDs der Service-Desk-Felder auf jorgena.atlassian.net (je Site verschieden, daher überschreibbar)
 const FELD_SLA_LOESUNG = process.env.JIRA_FELD_SLA || 'customfield_10107'        // „Time to resolution“
 const FELD_ANFRAGETYP  = process.env.JIRA_FELD_ANFRAGETYP || 'customfield_10010' // „Request Type“
+const FELD_ORGANISATION = process.env.JIRA_FELD_ORGANISATION || 'customfield_10002' // „Organizations“
 
 export type StatusKategorie = 'new' | 'indeterminate' | 'done'
 
@@ -48,6 +49,20 @@ export type SupportTicket = {
   /** manuelles Fälligkeitsdatum (selten gepflegt) */
   faellig: string | null
   erledigtAm: string | null
+  /** JSM-Organisation(en) – software:112 setzt den Betrieb bzw. Hauptmandanten */
+  organisationen: string[]
+  /** Mandanten-ID aus dem Kontextblock „Betrieb: <Name> (<ID>)“ von software:112 */
+  s112TenantId: string | null
+}
+
+const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+
+/** Mandanten-ID aus der Ticketbeschreibung (Atlassian Document Format oder Text) */
+export function s112TenantAusBeschreibung(beschreibung: unknown): string | null {
+  if (!beschreibung) return null
+  const text = typeof beschreibung === 'string' ? beschreibung : JSON.stringify(beschreibung)
+  const m = text.match(new RegExp(`Betrieb: [^\\n"]*?\\((${UUID})\\)`, 'i'))
+  return m ? m[1].toLowerCase() : null
 }
 
 export function phaseAus(statusName: string, kategorie: StatusKategorie): Phase {
@@ -83,7 +98,7 @@ function apiBasis(): string {
 }
 
 const FELDER = ['summary', 'status', 'issuetype', 'priority', 'assignee', 'reporter', 'created', 'updated', 'duedate', 'resolutiondate',
-  FELD_SLA_LOESUNG, FELD_ANFRAGETYP]
+  'description', FELD_SLA_LOESUNG, FELD_ANFRAGETYP, FELD_ORGANISATION]
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type R = Record<string, any>
@@ -118,6 +133,9 @@ function zuTicket(i: R): SupportTicket {
     aktualisiert: f.updated,
     faellig: f.duedate ?? null,
     erledigtAm: f.resolutiondate ?? null,
+    organisationen: ((Array.isArray(f[FELD_ORGANISATION]) ? f[FELD_ORGANISATION] : []) as R[])
+      .map(o => String(o?.name ?? '').trim()).filter(Boolean),
+    s112TenantId: s112TenantAusBeschreibung(f.description),
   }
 }
 

@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { ExternalLink, Pause } from 'lucide-react'
 import { istUeberfaellig, type SupportTicket } from '@/lib/support/jira'
-import type { CrmTreffer } from '@/lib/support/crm'
+import type { TicketZuordnung } from '@/lib/support/crm'
 
 // Server läuft in UTC (Vercel) – Jira-Zeitpunkte immer in Wiener Zeit anzeigen
 const TZ = 'Europe/Vienna'
@@ -48,8 +48,8 @@ function Faellig({ t, kurz = false }: { t: SupportTicket; kurz?: boolean }) {
 
 export default function TicketTabelle({ tickets, crm, kompakt = false }: {
   tickets: SupportTicket[]
-  /** E-Mail des Melders → CRM-Zuordnung (nur in der Übersicht) */
-  crm?: Map<string, CrmTreffer>
+  /** Ticket-Key → CRM-Zuordnung (nur in der Übersicht) */
+  crm?: Map<string, TicketZuordnung>
   /** schmale Variante für die Karten auf den CRM-Detailseiten */
   kompakt?: boolean
 }) {
@@ -90,7 +90,7 @@ export default function TicketTabelle({ tickets, crm, kompakt = false }: {
         </thead>
         <tbody className="divide-y divide-hs-line">
           {tickets.map(t => {
-            const z = t.melderEmail ? crm?.get(t.melderEmail) : undefined
+            const z = crm?.get(t.key)
             return (
               <tr key={t.key} className="hover:bg-hs-bg/70 align-top">
                 <td className="px-3 py-2 max-w-[420px]">
@@ -104,9 +104,12 @@ export default function TicketTabelle({ tickets, crm, kompakt = false }: {
                 <td className="px-3 py-2">
                   {z?.firma ? <Link href={`/crm/firmen/${z.firma.id}`} className="text-hs-blue-700 hover:underline">{z.firma.name}</Link>
                     : z?.kontakt ? <Link href={`/crm/kontakte/${z.kontakt.id}`} className="text-hs-blue-700 hover:underline">{z.kontakt.name}</Link>
-                    : <span className="text-hs-text-1">{t.melderName ?? '–'}</span>}
+                    : <span className="text-hs-text-1">{t.organisationen[0] ?? t.melderName ?? '–'}</span>}
                   <span className="block text-[11px] text-hs-tertiary">
-                    {z?.firma && z.kontakt ? `${z.kontakt.name} · ` : ''}{t.melderEmail ?? ''}
+                    {/* Melder: CRM-Kontakt, sonst Name aus Jira */}
+                    {z?.firma ? `${z.kontakt?.name ?? t.melderName ?? ''}${(z.kontakt?.name ?? t.melderName) ? ' · ' : ''}`
+                      : !z && t.organisationen[0] && t.melderName ? `${t.melderName} · ` : ''}
+                    {t.melderEmail ?? ''}
                     {!z && <span className="text-hs-warn-fg">{t.melderEmail ? ' · ' : ''}nicht im CRM</span>}
                   </span>
                 </td>
