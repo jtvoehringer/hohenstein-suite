@@ -2,7 +2,7 @@
 // Für den Morgenbericht auf der Übersicht. Liest ausschließlich über den
 // Service-Role-Zugang (s112Admin) und pingt die App-URL; es wird nichts geschrieben.
 // Quellen im software:112-Projekt: tenants, system_ereignisse (Fehler-/Ereignis-
-// protokoll inkl. täglichem Smoke-Test), morgenberichte (Cron 05:00 UTC je Betrieb),
+// protokoll inkl. manuellem Smoke-Test), morgenberichte (Cron 05:00 UTC je Betrieb),
 // stripe_zahlungen_log (offene Verbuchung in der Suite).
 
 import { s112Admin, s112Konfiguriert, S112_APP_URL, S112_DEMO_TENANT_ID } from './admin'
@@ -97,20 +97,26 @@ export async function s112Health(): Promise<S112Health> {
     detail: ereignisse.length > 0 ? `${ereignisse.length} Ereignisse gesamt` : null,
   })
 
-  // Smoke-Test (Cron in software:112)
+  // Smoke-Test der Zugriffsrechte – in software:112 MANUELL unter Admin → System (kein Cron).
+  // Daher: nie ausgeführt bzw. alt = nur Hinweis ohne gelbe Ampel; rot nur bei fehlgeschlagenen Prüfungen.
+  const smokeHref = S112_APP_URL.replace(/\/$/, '') + '/admin/system'
   const smoke = smokeRes.data as R | null
   if (smoke) {
     const m = /(\d+) von (\d+)/.exec(String(smoke.meldung ?? ''))
     const bestanden = m ? Number(m[1]) : null, gesamtP = m ? Number(m[2]) : null
-    const alter = (Date.now() - Date.parse(smoke.erstellt_am)) / 3600000
+    const tage = Math.floor((Date.now() - Date.parse(smoke.erstellt_am)) / 86400000)
     const ok = bestanden != null && gesamtP != null && bestanden === gesamtP
     punkte.push({
-      key: 'smoke', label: 'Smoke-Test', ampel: !ok ? 'err' : alter > 36 ? 'warn' : 'ok',
+      key: 'smoke', label: 'Smoke-Test', ampel: ok ? 'ok' : 'err',
       wert: bestanden != null ? `${bestanden}/${gesamtP} bestanden` : String(smoke.meldung ?? '').slice(0, 60),
-      detail: `zuletzt ${fmtZeit(smoke.erstellt_am)}${alter > 36 ? ' – älter als 36 h' : ''}`,
+      detail: `zuletzt ${fmtZeit(smoke.erstellt_am)}${tage >= 7 ? ` (vor ${tage} Tagen) – nach Releases erneut ausführen` : ''}`,
+      href: smokeHref,
     })
   } else {
-    punkte.push({ key: 'smoke', label: 'Smoke-Test', ampel: 'warn', wert: 'kein Ergebnis', detail: 'Noch kein Smoke-Test protokolliert.' })
+    punkte.push({
+      key: 'smoke', label: 'Smoke-Test', ampel: 'ok', wert: 'noch nicht ausgeführt',
+      detail: 'Läuft manuell in software:112 unter Admin → System (Zugriffsrechte je Rolle im Demo-Betrieb).', href: smokeHref,
+    })
   }
 
   // Morgenbericht-Cron (05:00 UTC je Betrieb)

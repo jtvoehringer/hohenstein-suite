@@ -30,7 +30,8 @@
   gestreamt): links Testzugänge über hohenstein-partner.at (`trial_anfragen` + `demo_zugaenge`, letzte 14 Tage, Bot-Ablehnungen ausgeblendet,
   letzte Anmeldung via `s112LetzteAnmeldungen`), rechts Healthstatus software:112 (`src/lib/s112/health.ts`: App-Ping S112_APP_URL,
   DB-Antwortzeit, aktive Mandanten/Stripe-Status, `system_ereignisse` 24 h inkl. Smoke-Test, `morgenberichte`-Cron heute vs. gestern,
-  offene `stripe_zahlungen_log`) mit Gesamtampel. Trial-API: /api/public/trial (Website-Formular → Firma/Kontakt/Demo-User/Mails).
+  offene `stripe_zahlungen_log`; Smoke-Test läuft in software:112 nur manuell unter Admin → System) mit Gesamtampel; links darunter Block „Support-Tickets“
+  (Jira: Kennzahlen, max. 6 offene Tickets nach SLA-Dringlichkeit mit CRM-Kunde) und eigene Support-Ampel im Kopf. Trial-API: /api/public/trial (Website-Formular → Firma/Kontakt/Demo-User/Mails).
 - Benachrichtigungen (Migration 022, `src/lib/benachrichtigungen/server.ts`): Ereignisse „Aufgabe zugewiesen", „Aufgabe für alle"
   (`aufgaben.fuer_alle`, Verantwortlich „– Alle –") und „@Erwähnung" (Vorname oder voller Name der Team-Mitglieder in Aufgaben-
   Beschreibung und Termin-Beschreibung, nur neue Erwähnungen beim Bearbeiten) werden über Kanäle zugestellt: App (Tabelle
