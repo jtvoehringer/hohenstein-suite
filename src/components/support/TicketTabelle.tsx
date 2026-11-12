@@ -91,6 +91,9 @@ export default function TicketTabelle({ tickets, crm, kompakt = false }: {
         <tbody className="divide-y divide-hs-line">
           {tickets.map(t => {
             const z = crm?.get(t.key)
+            // Betrieb aus software:112 (Organisation in Jira) – maßgeblich vor der E-Mail des Melders
+            const betrieb = t.organisationen[0] ?? (t.s112TenantId ? 'software:112-Betrieb' : null)
+            const melder = z?.kontakt?.name ?? t.melderName
             return (
               <tr key={t.key} className="hover:bg-hs-bg/70 align-top">
                 <td className="px-3 py-2 max-w-[420px]">
@@ -103,14 +106,16 @@ export default function TicketTabelle({ tickets, crm, kompakt = false }: {
                 </td>
                 <td className="px-3 py-2">
                   {z?.firma ? <Link href={`/crm/firmen/${z.firma.id}`} className="text-hs-blue-700 hover:underline">{z.firma.name}</Link>
+                    : betrieb ? <span className="text-hs-text-1">{betrieb}</span>
                     : z?.kontakt ? <Link href={`/crm/kontakte/${z.kontakt.id}`} className="text-hs-blue-700 hover:underline">{z.kontakt.name}</Link>
-                    : <span className="text-hs-text-1">{t.organisationen[0] ?? t.melderName ?? '–'}</span>}
+                    : <span className="text-hs-text-1">{t.melderName ?? '–'}</span>}
                   <span className="block text-[11px] text-hs-tertiary">
-                    {/* Melder: CRM-Kontakt, sonst Name aus Jira */}
-                    {z?.firma ? `${z.kontakt?.name ?? t.melderName ?? ''}${(z.kontakt?.name ?? t.melderName) ? ' · ' : ''}`
-                      : !z && t.organisationen[0] && t.melderName ? `${t.melderName} · ` : ''}
+                    {/* Melder unter Firma bzw. Betrieb: CRM-Kontakt, sonst Name aus Jira */}
+                    {(z?.firma || betrieb) && melder ? `${melder} · ` : ''}
                     {t.melderEmail ?? ''}
-                    {!z && <span className="text-hs-warn-fg">{t.melderEmail ? ' · ' : ''}nicht im CRM</span>}
+                    {!z?.firma && betrieb ? (
+                      <> · <Link href="/software112" className="text-hs-warn-fg hover:underline" title="CRM-Firma mit dem software:112-Mandanten verknüpfen">Betrieb nicht im CRM verknüpft</Link></>
+                    ) : !z && <span className="text-hs-warn-fg">{t.melderEmail ? ' · ' : ''}nicht im CRM</span>}
                   </span>
                 </td>
                 <td className="px-3 py-2"><StatusPill t={t} /></td>

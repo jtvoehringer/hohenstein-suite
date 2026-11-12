@@ -5,7 +5,7 @@ import { LifeBuoy } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentMembership } from '@/lib/auth/roles'
 import { ladeSupportTickets, istOffen, jiraLinks } from '@/lib/support/jira'
-import { crmZuordnungFuerTickets } from '@/lib/support/crm'
+import { crmZuordnungFuerTickets, hatBetrieb } from '@/lib/support/crm'
 import TicketTabelle from './TicketTabelle'
 
 function Rahmen({ children, rechts }: { children: React.ReactNode; rechts?: React.ReactNode }) {
@@ -46,9 +46,10 @@ export default async function SupportTicketsKarte({ firmaId, kontaktId, emails }
   const zuordnung = await crmZuordnungFuerTickets(supabase, membership.tenantId, erg.tickets)
 
   const tickets = erg.tickets.filter(t => {
-    if (t.melderEmail && adressen.has(t.melderEmail)) return true
     const z = zuordnung.get(t.key)
-    return !!z && ((!!firmaId && z.firma?.id === firmaId) || (!!kontaktId && z.kontakt?.id === kontaktId))
+    if (z && ((!!firmaId && z.firma?.id === firmaId) || (!!kontaktId && z.kontakt?.id === kontaktId))) return true
+    // direkter E-Mail-Treffer: auf der Kontaktseite immer (Melder), auf der Firmenseite nur bei Tickets ohne Betrieb
+    return !!t.melderEmail && adressen.has(t.melderEmail) && (!!kontaktId || !hatBetrieb(t))
   })
   if (tickets.length === 0) return null
   const offen = tickets.filter(istOffen)

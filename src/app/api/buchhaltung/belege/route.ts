@@ -7,6 +7,7 @@
 // Schlägt die Erkennung fehl: status 'fehler' + fehler_details. Der Upload
 // selbst darf nie an der KI scheitern.
 
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -147,8 +148,8 @@ export async function POST(req: NextRequest) {
 
       // Geschäftspartner-Abgleich gegen die Firmen des Mandanten (Name)
       if (partnerName) {
-        const { data: firmenRaw } = await (supabase.from('firmen') as any)
-          .select('id, name').eq('tenant_id', tenantId).eq('aktiv', true)
+        const firmenRaw = await alleZeilen<R>(() => (supabase.from('firmen') as any)
+          .select('id, name').eq('tenant_id', tenantId).eq('aktiv', true).order('id'))
         const firmen = (firmenRaw ?? []) as R[]
         const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
         const gesucht = norm(partnerName)

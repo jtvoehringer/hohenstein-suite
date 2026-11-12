@@ -52,13 +52,18 @@ export type TicketZuordnung = CrmTreffer & {
 
 type TicketFuerZuordnung = { key: string; melderEmail: string | null; organisationen: string[]; s112TenantId: string | null }
 
+/** Kommt das Ticket mit einem Betrieb (Mandanten-ID oder JSM-Organisation)? */
+export function hatBetrieb(t: Pick<TicketFuerZuordnung, 'organisationen' | 's112TenantId'>): boolean {
+  return !!t.s112TenantId || t.organisationen.length > 0
+}
+
 /**
  * Ticket → CRM-Firma/-Kontakt. Reihenfolge:
  *  1. Mandanten-ID aus dem software:112-Kontextblock → Firma mit dieser s112_tenant_id
  *  2. JSM-Organisation (= Betrieb bzw. Hauptmandant) → software:112-Mandant gleichen Namens → verknüpfte Firma,
  *     sonst CRM-Firma gleichen Namens
- *  3. E-Mail des Melders → Kontakt (mit Hauptfirma) bzw. Firma
- * Ein per E-Mail gefundener Kontakt wird auch bei 1./2. mit angezeigt.
+ *  3. E-Mail des Melders → Kontakt (mit Hauptfirma) bzw. Firma – nur bei Tickets OHNE Betrieb
+ * Ein per E-Mail gefundener Kontakt wird auch bei 1./2. mit angezeigt (als Melder).
  */
 export async function crmZuordnungFuerTickets(supabase: SB, tenantId: string, tickets: TicketFuerZuordnung[]): Promise<Map<string, TicketZuordnung>> {
   const ergebnis = new Map<string, TicketZuordnung>()
@@ -116,6 +121,12 @@ export async function crmZuordnungFuerTickets(supabase: SB, tenantId: string, ti
         const f = ueberMandant ?? firmaJeName.get(o)
         if (f) { firma = f; ueber = 'organisation'; break }
       }
+    }
+    // Bringt das Ticket einen Betrieb mit (software:112), ist der maßgeblich: ohne CRM-Firma dazu
+    // KEINE Firma über die E-Mail einsetzen – sonst landet z. B. ein Musterhof-Ticket bei der Firma des Melders.
+    if (!firma && hatBetrieb(t)) {
+      if (email?.kontakt) ergebnis.set(t.key, { kontakt: email.kontakt, firma: null, ueber: 'email' })
+      continue
     }
     if (!firma && !email) continue
     ergebnis.set(t.key, { kontakt: email?.kontakt ?? null, firma: firma ?? email?.firma ?? null, ueber })

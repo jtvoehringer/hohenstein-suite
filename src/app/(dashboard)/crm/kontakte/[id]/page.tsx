@@ -7,6 +7,7 @@ import { kontaktName, parseProdukte } from '@/lib/crm/types'
 import type { AktivitaetMitDokumenten, PipelineKurz } from '@/components/crm/crmUtils'
 import { Suspense } from 'react'
 import SupportTicketsKarte, { SupportTicketsKarteLaden } from '@/components/support/SupportTicketsKarte'
+import { alleZeilen } from '@/lib/supabase/alleZeilen'
 import KontaktDetailClient from './KontaktDetailClient'
 
 export const dynamic = 'force-dynamic'
@@ -33,7 +34,7 @@ export default async function KontaktDetailPage({ params }: { params: Promise<{ 
   const writeOk  = canWrite(membership.role)
   const supabase = await createSupabaseServerClient()
 
-  const [{ data: kRaw }, { data: aRaw }, { data: pRaw }, { data: fRaw }, { data: kfRaw }] = await Promise.all([
+  const [{ data: kRaw }, { data: aRaw }, { data: pRaw }, fRaw, { data: kfRaw }] = await Promise.all([
     (supabase.from('kontakte') as any)
       .select('id, kundennummer, vorname, nachname, segment, firma_id, firmen:firma_id(name, segment), position, email, telefon_vorwahl, telefon, mobil_vorwahl, mobil, strasse, plz, ort, land, geburtsdatum, sprache, ansprechpartner_intern, is_lead, produktkunde, produkte, notizen, aktiv, erstellt_am')
       .eq('id', id).eq('tenant_id', tenantId).maybeSingle(),
@@ -45,8 +46,9 @@ export default async function KontaktDetailPage({ params }: { params: Promise<{ 
       .select('id, stufe, titel, kategorie, wert_euro, wahrscheinlichkeit, erwartetes_datum, erledigt')
       .eq('kontakt_id', id).eq('tenant_id', tenantId)
       .order('aktualisiert_am', { ascending: false }),
-    (supabase.from('firmen') as any)
-      .select('id, name').eq('tenant_id', tenantId).eq('aktiv', true).order('name'),
+    // alle Firmen (5000+), nicht nur die ersten 1000 – sonst fehlt z. B. „Weingut …“ in der Firmenauswahl
+    alleZeilen<R>(() => (supabase.from('firmen') as any)
+      .select('id, name').eq('tenant_id', tenantId).eq('aktiv', true).order('name').order('id')),
     (supabase.from('kontakt_firmen') as any)
       .select('firma_id, position, hauptkontakt, firmen:firma_id(id, name, segment, tenant_id)')
       .eq('kontakt_id', id),
