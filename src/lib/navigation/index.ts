@@ -4,7 +4,7 @@
 // TabNav und die Befehlspalette (Strg K). Bewusst frei von Server-Imports.
 
 import {
-  LayoutDashboard, Users, ReceiptText, FlaskConical, Settings, Mail, FileText, FolderOpen,
+  LayoutDashboard, Users, ReceiptText, FlaskConical, Settings, Mail, FileText, FolderOpen, LifeBuoy,
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/lib/auth/roles'
@@ -53,6 +53,12 @@ const NAV: NavGroup[] = [
     items: [
       { href: '/nachrichten',               label: 'Posteingang',   keywords: 'mail nachrichten imap' },
       { href: '/nachrichten/einstellungen', label: 'E-Mail-Konto',  child: true, keywords: 'imap smtp zugang passwort' },
+    ],
+  },
+  {
+    key: 'support', label: 'Support', icon: LifeBuoy,
+    items: [
+      { href: '/support', label: 'Tickets', keywords: 'jira service desk serviceanfragen vorfälle incident warteschlange kundenanfragen helpdesk' },
     ],
   },
   {

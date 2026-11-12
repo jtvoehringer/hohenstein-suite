@@ -38,8 +38,10 @@ export type Ansprechpartner = {
 }
 
 export default function FirmaDetailClient({
-  firma, ansprechpartner, aktivitaeten, pipeline, mitglieder, writeOk, trialZugang, dateien,
+  firma, ansprechpartner, aktivitaeten, pipeline, mitglieder, writeOk, trialZugang, dateien, supportKarte,
 }: {
+  /** Karte „Support-Tickets“ (Server-Komponente aus Jira, per Suspense gestreamt) */
+  supportKarte?: React.ReactNode
   firma: FirmaRow
   ansprechpartner: Ansprechpartner[]
   aktivitaeten: AktivitaetMitDokumenten[]
@@ -334,6 +336,7 @@ export default function FirmaDetailClient({
           </div>
 
           <DateienKarte dateien={dateien} firmaId={firma.id} writeOk={writeOk} />
+          {supportKarte}
 
           {trialZugang && (
             <div className="bg-white rounded-xl border border-hs-line p-4 space-y-2">

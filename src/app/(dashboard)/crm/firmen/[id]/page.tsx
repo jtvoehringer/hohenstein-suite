@@ -6,6 +6,8 @@ import type { FirmaRow } from '@/lib/crm/types'
 import { kontaktName, parseProdukte } from '@/lib/crm/types'
 import type { AktivitaetMitDokumenten, PipelineKurz } from '@/components/crm/crmUtils'
 import { ladeMandantMitglieder } from '@/lib/aufgaben/mitglieder'
+import { Suspense } from 'react'
+import SupportTicketsKarte, { SupportTicketsKarteLaden } from '@/components/support/SupportTicketsKarte'
 import FirmaDetailClient, { type Ansprechpartner } from './FirmaDetailClient'
 
 export const dynamic = 'force-dynamic'
@@ -151,6 +153,11 @@ export default async function FirmaDetailPage({ params }: { params: Promise<{ id
       writeOk={writeOk}
       trialZugang={trialZugang}
       dateien={dateien}
+      supportKarte={
+        <Suspense fallback={<SupportTicketsKarteLaden />}>
+          <SupportTicketsKarte emails={[firma.email, ...ansprechpartner.map(a => a.email)]} />
+        </Suspense>
+      }
     />
   )
 }

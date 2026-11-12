@@ -64,6 +64,11 @@
 - Passkeys (wie software:112 KAN-287): Supabase-Passkeys (Beta, supabase-js ≥ 2.116, Browser-Client mit `auth.experimental.passkey`),
   Knopf „Mit Passkey anmelden“ auf /login, Einrichten/Entfernen im Profil (`profil/PasskeyVerwaltung.tsx`, `src/lib/auth/passkey.ts`);
   im Supabase-Dashboard unter Authentication → Passkeys mit RP-ID `hohenstein-suite.vercel.app` freizuschalten.
+- Support (/support, Bereich „Support“): Tickets aus Jira Service Management (jorgena.atlassian.net, Projekt `SUP` „software112 Support“)
+  über die REST-API (`src/lib/support/jira.ts`, 60 s gecacht; Jira ist nicht per iframe einbettbar) – Kennzahlen, Ansichten
+  Offen/Ohne Bearbeiter/Erledigt/Alle, Klick öffnet das Ticket in Jira. Melder-E-Mail → CRM-Kontakt/Firma (`src/lib/support/crm.ts`);
+  Karte „Support-Tickets“ auf Firmen-/Kontakt-Detailseiten (`components/support/SupportTicketsKarte.tsx`, Suspense-Slot `supportKarte`).
+  Env: `JIRA_EMAIL`, `JIRA_API_TOKEN` (Agent im Projekt), optional `JIRA_SITE_URL`, `JIRA_SUPPORT_PROJECT`, `JIRA_CLOUD_ID` (Service-Konto, scoped Token).
 - PWA: Manifest `src/app/manifest.ts`, Apple-Metadaten in `src/app/layout.tsx`, öffentliche Installationsanleitung /installieren (Link fürs Team).
 - Verbindlichkeiten: `eingangsrechnungen` (/rechnungen/verbindlichkeiten); Bezahlen bucht E&A-Ausgabe (`import_quelle='eingangsrechnung'`),
   Zahlung zurücknehmen löscht sie (nur wenn nicht gesperrt). Fällige Eingangs-/überfällige Ausgangsrechnungen erscheinen in der Hinweis-Glocke.

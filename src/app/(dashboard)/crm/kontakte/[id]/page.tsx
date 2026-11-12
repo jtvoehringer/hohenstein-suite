@@ -5,6 +5,8 @@ import { getCurrentMembership, canWrite } from '@/lib/auth/roles'
 import type { KontaktRow } from '@/lib/crm/types'
 import { kontaktName, parseProdukte } from '@/lib/crm/types'
 import type { AktivitaetMitDokumenten, PipelineKurz } from '@/components/crm/crmUtils'
+import { Suspense } from 'react'
+import SupportTicketsKarte, { SupportTicketsKarteLaden } from '@/components/support/SupportTicketsKarte'
 import KontaktDetailClient from './KontaktDetailClient'
 
 export const dynamic = 'force-dynamic'
@@ -112,6 +114,11 @@ export default async function KontaktDetailPage({ params }: { params: Promise<{ 
       firmen={firmen}
       dateien={dateien}
       writeOk={writeOk}
+      supportKarte={
+        <Suspense fallback={<SupportTicketsKarteLaden />}>
+          <SupportTicketsKarte emails={[kontakt.email]} />
+        </Suspense>
+      }
     />
   )
 }

@@ -24,8 +24,10 @@ import { LAENDER, SPRACHEN } from '@/components/crm/crmUtils'
 type WeitereFirma = { id: string; name: string; segment: string; position: string | null; hauptkontakt: boolean }
 
 export default function KontaktDetailClient({
-  kontakt, firmaSegment, weitereFirmen, aktivitaeten, pipeline, firmen, dateien, writeOk,
+  kontakt, firmaSegment, weitereFirmen, aktivitaeten, pipeline, firmen, dateien, writeOk, supportKarte,
 }: {
+  /** Karte „Support-Tickets“ (Server-Komponente aus Jira, per Suspense gestreamt) */
+  supportKarte?: React.ReactNode
   kontakt: KontaktRow
   firmaSegment: string | null
   weitereFirmen: WeitereFirma[]
@@ -230,6 +232,7 @@ export default function KontaktDetailClient({
           </div>
 
           <DateienKarte dateien={dateien} kontaktId={kontakt.id} writeOk={writeOk} />
+          {supportKarte}
 
           <div className="bg-white rounded-xl border border-hs-line p-4 space-y-3">
             <div className="flex items-center justify-between">
