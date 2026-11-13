@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { s112DemoUserAnlegen, s112HatEchtesKonto, demoPasswort, s112Konfiguriert, S112_APP_URL } from '@/lib/s112/admin'
 import { sendeTrialZugangMail, sendeInterneTrialBenachrichtigung, transaktionalKonfiguriert } from '@/lib/email/transaktional'
 import { findeBestehendeFirma, accountManagerName } from '@/lib/public/firmaMatch'
+import { zuVieleAnfragen } from '@/lib/public/anfrageLimit'
 import { bereinige, bereinigeText, bereinigeTelefon, istGueltigeEmail, enthaeltLinkOderMarkup, bereinigeIp } from '@/lib/public/eingabe'
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +18,9 @@ const TRIAL_DAUER_TAGE = Number(process.env.TRIAL_DAUER_TAGE ?? 14)
 // auf die gemeinsam genutzte Demo-Umgebung, keinen Schreibzugriff. Das lässt sich
 // hier auf 'winzer' ändern, sobald ein Ablauf zur Bereinigung/Isolation steht.
 const TRIAL_ROLLE: 'winzer' | 'leser' = 'leser'
-const MAX_ANFRAGEN_PRO_TAG = 3
+const MAX_ANFRAGEN_PRO_EMAIL = 3
+// Über eine IP können viele verschiedene Interessenten kommen (Handynetz, Firmennetz, VPN)
+const MAX_ANFRAGEN_PRO_IP = Number(process.env.TRIAL_MAX_PRO_IP ?? 10)
 // Schutz gegen massenhaftes Anlegen von Demo-Benutzern (z. B. verteilte Bots mit vielen IPs/E-Mails)
 const MAX_TRIALS_GESAMT_PRO_TAG = Number(process.env.TRIAL_MAX_PRO_TAG ?? 40)
 
@@ -85,13 +88,9 @@ export async function POST(req: NextRequest) {
     return json(req, { ok: false, fehler: 'Der Trialzugang ist derzeit nicht verfügbar. Bitte über das Kontaktformular melden.' }, 503)
   }
 
-  // Rate-Limit: max. MAX_ANFRAGEN_PRO_TAG erfolgreiche/abgelehnte Versuche je E-Mail oder IP in 24h.
+  // Rate-Limit je E-Mail und je IP in 24h (nur verarbeitete Trialanfragen, siehe anfrageLimit.ts)
   const seit24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const { count } = await (admin.from('trial_anfragen') as any)
-    .select('id', { count: 'exact', head: true })
-    .gte('erstellt_am', seit24h)
-    .or(`email.eq.${email},ip.eq.${ip}`)
-  if ((count ?? 0) >= MAX_ANFRAGEN_PRO_TAG) {
+  if (await zuVieleAnfragen(admin, { herkunft: 'hohenstein-partner.at', email, ip, maxProEmail: MAX_ANFRAGEN_PRO_EMAIL, maxProIp: MAX_ANFRAGEN_PRO_IP })) {
     await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Rate-Limit erreicht' })
     return json(req, { ok: false, fehler: 'Zu viele Anfragen. Bitte später erneut versuchen oder direkt Kontakt aufnehmen.' }, 429)
   }

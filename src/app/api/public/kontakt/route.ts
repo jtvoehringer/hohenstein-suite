@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { sendeAllgemeineKontaktBenachrichtigung, transaktionalKonfiguriert } from '@/lib/email/transaktional'
 import { findeBestehendeFirma } from '@/lib/public/firmaMatch'
+import { zuVieleAnfragen } from '@/lib/public/anfrageLimit'
 import { bereinige, bereinigeText, bereinigeTelefon, istGueltigeEmail, enthaeltLinkOderMarkup, bereinigeIp } from '@/lib/public/eingabe'
 
 export const dynamic = 'force-dynamic'
@@ -14,7 +15,8 @@ type R = Record<string, any>
 // verpflichtende Firmenangabe. Landet ebenfalls im CRM (Firmen bzw. Kontakte),
 // damit alles Interesse von der Website an einer Stelle sichtbar ist.
 const TENANT_ID = '11111111-1111-4111-8111-111111111111'
-const MAX_ANFRAGEN_PRO_TAG = 5
+const MAX_ANFRAGEN_PRO_EMAIL = 5
+const MAX_ANFRAGEN_PRO_IP = Number(process.env.KONTAKT_MAX_PRO_IP ?? 15)
 
 function corsHeaders(req: NextRequest): HeadersInit {
   const erlaubt = (process.env.TRIAL_ALLOWED_ORIGINS ?? '').split(',').map(s => s.trim()).filter(Boolean)
@@ -58,10 +60,7 @@ export async function POST(req: NextRequest) {
     return json(req, { ok: false, fehler: 'Bitte Name, eine gültige E-Mail-Adresse und eine Nachricht angeben.' }, 400)
   }
 
-  const seit24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const { count } = await (admin.from('trial_anfragen') as any)
-    .select('id', { count: 'exact', head: true }).gte('erstellt_am', seit24h).or(`email.eq.${email},ip.eq.${ip}`)
-  if ((count ?? 0) >= MAX_ANFRAGEN_PRO_TAG) {
+  if (await zuVieleAnfragen(admin, { herkunft: 'hohenstein-partner.at:kontakt', email, ip, maxProEmail: MAX_ANFRAGEN_PRO_EMAIL, maxProIp: MAX_ANFRAGEN_PRO_IP })) {
     await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Rate-Limit erreicht' })
     return json(req, { ok: false, fehler: 'Zu viele Anfragen. Bitte später erneut versuchen.' }, 429)
   }
