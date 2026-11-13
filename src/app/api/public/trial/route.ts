@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
-import { s112DemoUserAnlegen, demoPasswort, s112Konfiguriert, S112_APP_URL } from '@/lib/s112/admin'
+import { s112DemoUserAnlegen, s112HatEchtesKonto, demoPasswort, s112Konfiguriert, S112_APP_URL } from '@/lib/s112/admin'
 import { sendeTrialZugangMail, sendeInterneTrialBenachrichtigung, transaktionalKonfiguriert } from '@/lib/email/transaktional'
 import { findeBestehendeFirma, accountManagerName } from '@/lib/public/firmaMatch'
 import { bereinige, bereinigeText, bereinigeTelefon, istGueltigeEmail, enthaeltLinkOderMarkup, bereinigeIp } from '@/lib/public/eingabe'
@@ -101,6 +101,16 @@ export async function POST(req: NextRequest) {
   if ((trialsHeute ?? 0) >= MAX_TRIALS_GESAMT_PRO_TAG) {
     await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Tageslimit aller Trials erreicht' })
     return json(req, { ok: false, fehler: 'Heute sind keine weiteren Testzugänge verfügbar. Bitte über das Kontaktformular melden – wir schalten Sie gerne manuell frei.' }, 429)
+  }
+
+  // Bestehendes echtes software:112-Konto? Vor jedem CRM-Schreibzugriff prüfen, damit eine
+  // abgelehnte Anfrage keine Notiz an der Firma hinterlässt. Schlägt die Prüfung selbst fehl,
+  // greift weiter unten der Schutz in s112DemoUserAnlegen.
+  let hatKonto = false
+  try { hatKonto = await s112HatEchtesKonto(email) } catch { /* siehe oben */ }
+  if (hatKonto) {
+    await protokolliere({ email, firma_name: firmaName, ergebnis: 'abgelehnt', hinweis: 'Bestehendes software:112-Konto' })
+    return json(req, { ok: false, fehler: `Für diese E-Mail-Adresse gibt es bereits einen software:112-Zugang. Bitte melden Sie sich direkt unter ${S112_APP_URL.replace(/^https?:\/\//, '')} an – oder verwenden Sie für den Testzugang eine andere E-Mail-Adresse.` }, 409)
   }
 
   try {

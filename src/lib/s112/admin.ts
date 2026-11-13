@@ -90,6 +90,24 @@ export function demoPasswort(): string {
   return `${teil.slice(0, 4)}-${teil.slice(4, 8)}-${teil.slice(8, 12)}`
 }
 
+async function s112UserZuEmail(admin: SupabaseClient, email: string) {
+  const { data: liste } = await admin.auth.admin.listUsers({ perPage: 1000 })
+  return liste?.users.find(u => (u.email ?? '').toLowerCase() === email) ?? null
+}
+
+async function hatAndereMandanten(admin: SupabaseClient, userId: string): Promise<boolean> {
+  const { data } = await (admin.from('tenant_memberships') as any)
+    .select('tenant_id').eq('user_id', userId).neq('tenant_id', S112_DEMO_TENANT_ID)
+  return (data ?? []).length > 0
+}
+
+/** Hat die E-Mail-Adresse bereits ein echtes software:112-Konto (Mitglied außerhalb des Demo-Mandanten)? */
+export async function s112HatEchtesKonto(email: string): Promise<boolean> {
+  const admin = s112Admin()
+  const vorhanden = await s112UserZuEmail(admin, email.trim().toLowerCase())
+  return vorhanden ? hatAndereMandanten(admin, vorhanden.id) : false
+}
+
 /** Demo-Benutzer im software:112-Projekt anlegen und dem Demo-Mandanten zuordnen */
 export async function s112DemoUserAnlegen(input: { email: string; name: string; passwort: string; rolle: 'winzer' | 'leser' }): Promise<{ userId: string }> {
   const admin = s112Admin()
@@ -97,16 +115,13 @@ export async function s112DemoUserAnlegen(input: { email: string; name: string; 
 
   // Existiert der Benutzer bereits (z.B. aus einer früheren Demo)? Dann wiederverwenden.
   let userId: string | null = null
-  const { data: liste } = await admin.auth.admin.listUsers({ perPage: 1000 })
-  const vorhanden = liste?.users.find(u => (u.email ?? '').toLowerCase() === email)
+  const vorhanden = await s112UserZuEmail(admin, email)
   if (vorhanden) {
     userId = vorhanden.id
     // Schutz: Passwort nur überschreiben, wenn der Benutzer AUSSCHLIESSLICH im
     // Demo-Mandanten Mitglied ist – sonst würde ein echtes software:112-Konto
     // (z.B. Sandbox) sein Passwort verlieren.
-    const { data: mitgliedschaften } = await (admin.from('tenant_memberships') as any)
-      .select('tenant_id').eq('user_id', userId).neq('tenant_id', S112_DEMO_TENANT_ID)
-    if ((mitgliedschaften ?? []).length > 0) {
+    if (await hatAndereMandanten(admin, userId)) {
       throw new Error(`${email} hat in software:112 bereits Zugriff auf andere Betriebe – dieses Konto kann nicht als Vorführ-Zugang verwendet werden (das Passwort würde überschrieben). Bitte eine eigene Demo-Adresse verwenden, z.B. demo-${email.split('@')[0]}@hohenstein-partner.at.`)
     }
     const { error } = await admin.auth.admin.updateUserById(userId, { password: input.passwort, user_metadata: { full_name: input.name, display_name: input.name } })
