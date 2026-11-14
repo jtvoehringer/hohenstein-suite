@@ -536,14 +536,17 @@ begin
   ) as v(nr, wg, gst, kg, kgnr, ha, rv, na, boden, ez)
   loop
     insert into grundstuecke (id, tenant_id, weingarten_id, gst_nr, katastralgemeinde, kg_bezeichnung, einlagezahl, rebsorte, rebsorte_id, pflanzjahr,
-      flaeche_ha, flaeche_ha_kataster, spritzbar, status, nutzart, rechtsverhaeltnis, boden, unterlagsrebe, weinart, bewirtschaftung,
+      flaeche_ha, flaeche_ha_kataster, spritzbar, status, nutzart, boden, unterlagsrebe, weinart, bewirtschaftung,
       bewirtschaftung_seit, trauben_herkunft_code, ama_feldnummer)
     select demo_musterhof_id(3, r.nr), c_t, w.id, r.gst, r.kgnr, r.kg, r.ez,
       case when r.na = 'WI' then w.rebsorte end, case when r.na = 'WI' then wr.rebsorte_id end, case when r.na = 'WI' then w.pflanzjahr end,
-      r.ha, round(r.ha * 1.03, 4), r.na = 'WI', null, r.na, r.rv, r.boden, case when r.na = 'WI' then 'Kober 5BB' end,
+      r.ha, round(r.ha * 1.03, 4), r.na = 'WI', null, r.na, r.boden, case when r.na = 'WI' then 'Kober 5BB' end,
       case when r.na = 'WI' then w.weinart end, 'konventionell', w.bewirtschaftung_seit, case when r.na = 'WI' then 'wlnoe' end, w.ama_feldnummer
     from weingarten w left join weingarten_rebsorten wr on wr.weingarten_id = w.id
     where w.id = demo_musterhof_id(2, r.wg);
+    insert into grundstueck_recht (tenant_id, grundstueck_id, rechtsverhaeltnis)   -- KAN-458
+    select c_t, g.id, r.rv from grundstuecke g where g.id = demo_musterhof_id(3, r.nr)
+    on conflict (grundstueck_id) do nothing;
   end loop;
 
   -- ── Betriebsmittel: Pflanzenschutzmittel (Mandant) ────────────────────────
